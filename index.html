@@ -994,6 +994,18 @@
 
             // Show text preview section
             textPreviewSection.classList.add('visible');
+
+            // Analyze for running total patterns (for debugging/analysis)
+            const patterns = findRunningTotalPatterns(appState.pdfText);
+            if (patterns.length > 0) {
+                console.log('Found ' + patterns.length + ' running total patterns in PDF:');
+                patterns.slice(0, 10).forEach((pattern, index) => {
+                    console.log('  ' + (index + 1) + '. ' + pattern.pattern + ' = $' + pattern.value.toFixed(2) + ' at position ' + pattern.position);
+                });
+                if (patterns.length > 10) {
+                    console.log('  ... and ' + (patterns.length - 10) + ' more');
+                }
+            }
         }
 
         function togglePreview() {
@@ -1414,82 +1426,49 @@
         }
 
         function recalculateRunningTotals() {
-            let runningTotal = 0;
+            // Use the core calculation engine
+            const updatedOccurrences = calculateNewRunningTotals(appState.occurrences, appState.replacements);
 
-            // Iterate through all occurrences in order
-            appState.occurrences.forEach((occurrence) => {
-                const replacement = appState.replacements.get(occurrence.id);
-
-                if (replacement && replacement.newValue > 0) {
-                    // Use new value if replacement exists
-                    runningTotal += replacement.newValue;
-                } else {
-                    // Use original value
-                    runningTotal += occurrence.nearbyValue;
-                }
-
-                // Update the replacement with new running total
-                if (replacement) {
-                    replacement.newRunningTotal = runningTotal;
-                }
-
-                // Update UI for this running total
+            // Update UI for each running total
+            updatedOccurrences.forEach((occurrence) => {
                 const runningTotalElement = document.querySelector(`.new-running-total[data-item-id="${occurrence.id}"]`);
                 if (runningTotalElement) {
-                    runningTotalElement.textContent = '$' + runningTotal.toFixed(2);
+                    runningTotalElement.textContent = '$' + occurrence.newRunningTotal.toFixed(2);
                 }
             });
 
-            // Update the bottom total display
-            document.getElementById('newTotal').textContent = '$' + runningTotal.toFixed(2);
+            // Get final total
+            const finalTotal = updatedOccurrences.length > 0
+                ? updatedOccurrences[updatedOccurrences.length - 1].newRunningTotal
+                : 0;
 
-            return runningTotal;
+            // Update the bottom total display
+            document.getElementById('newTotal').textContent = '$' + finalTotal.toFixed(2);
+
+            return finalTotal;
         }
 
         function updateValidation() {
-            // Calculate original total
-            const originalTotal = appState.occurrences.length > 0
-                ? appState.occurrences[appState.occurrences.length - 1].runningTotalAtThisPoint
-                : 0;
+            // Use the core validation engine
+            const validation = validateTotals(appState.occurrences, appState.replacements);
 
-            // Calculate new total from replacements
-            let newTotal = 0;
-            appState.occurrences.forEach((occurrence) => {
-                const replacement = appState.replacements.get(occurrence.id);
-                if (replacement && replacement.newValue > 0) {
-                    newTotal += replacement.newValue;
-                } else {
-                    newTotal += occurrence.nearbyValue;
-                }
-            });
-
-            // Update validation status
+            // Update UI with validation results
             const statusText = document.getElementById('statusText');
             const statusIndicator = document.getElementById('statusIndicator');
 
-            const difference = Math.abs(originalTotal - newTotal);
-            const isMatch = difference < 0.01; // Allow for small floating point errors
+            statusText.textContent = validation.message;
 
-            if (isMatch) {
-                statusText.textContent = '✓ Totals match! Replacements sum to $' + originalTotal.toFixed(2);
-                statusIndicator.classList.remove('invalid');
+            // Update indicator classes
+            statusIndicator.classList.remove('valid', 'invalid');
+            if (validation.isValid) {
                 statusIndicator.classList.add('valid');
-
-                // Enable download button
                 document.getElementById('downloadBtn').disabled = false;
             } else {
-                const needed = originalTotal - newTotal;
-                if (needed > 0) {
-                    statusText.textContent = '✗ Totals don\'t match. Need $' + needed.toFixed(2) + ' more to reach $' + originalTotal.toFixed(2);
-                } else {
-                    statusText.textContent = '✗ Totals don\'t match. $' + Math.abs(needed).toFixed(2) + ' over the target of $' + originalTotal.toFixed(2);
-                }
-                statusIndicator.classList.remove('valid');
                 statusIndicator.classList.add('invalid');
-
-                // Disable download button
                 document.getElementById('downloadBtn').disabled = true;
             }
+
+            return validation;
         }
 
         function handleFillRemaining() {
@@ -1574,14 +1553,227 @@
         }
 
         // ============================================
-        // REPLACEMENT & CALCULATION (TO BE IMPLEMENTED)
+        // REPLACEMENT & CALCULATION ENGINE
         // ============================================
-        function applyReplacements(text, mappings) {
-            // TODO: Apply all replacements to text
+
+        /**
+         * Calculate new running totals based on replacement values
+         * @param {Array} occurrences - Array of occurrence objects
+         * @param {Map} replacementMap - Map of replacements (id -> {newName, newValue, newRunningTotal})
+         * @returns {Array} Updated occurrences with new running totals
+         */
+        function calculateNewRunningTotals(occurrences, replacementMap) {
+            let runningTotal = 0;
+            const updatedOccurrences = [];
+
+            occurrences.forEach((occurrence) => {
+                const replacement = replacementMap.get(occurrence.id);
+
+                // Use new value if replacement exists and has a value, otherwise use original
+                const valueToAdd = (replacement && replacement.newValue > 0)
+                    ? replacement.newValue
+                    : occurrence.nearbyValue;
+
+                runningTotal += valueToAdd;
+
+                // Create updated occurrence with new running total
+                const updatedOccurrence = {
+                    ...occurrence,
+                    newValue: replacement ? replacement.newValue : occurrence.nearbyValue,
+                    newName: replacement ? replacement.newName : occurrence.match,
+                    newRunningTotal: runningTotal
+                };
+
+                updatedOccurrences.push(updatedOccurrence);
+
+                // Update the replacement map with the new running total
+                if (replacement) {
+                    replacement.newRunningTotal = runningTotal;
+                }
+            });
+
+            return updatedOccurrences;
         }
 
-        function calculateTotals(items) {
-            // TODO: Calculate running totals
+        /**
+         * Validate that replacement totals match original totals
+         * @param {Array} occurrences - Array of occurrence objects
+         * @param {Map} replacementMap - Map of replacements
+         * @returns {Object} Validation result {isValid, difference, message, originalTotal, newTotal}
+         */
+        function validateTotals(occurrences, replacementMap) {
+            // Calculate original total
+            const originalTotal = occurrences.length > 0
+                ? occurrences[occurrences.length - 1].runningTotalAtThisPoint
+                : 0;
+
+            // Calculate new total from replacements
+            let newTotal = 0;
+            occurrences.forEach((occurrence) => {
+                const replacement = replacementMap.get(occurrence.id);
+                if (replacement && replacement.newValue > 0) {
+                    newTotal += replacement.newValue;
+                } else {
+                    newTotal += occurrence.nearbyValue;
+                }
+            });
+
+            // Calculate difference
+            const difference = originalTotal - newTotal;
+            const isMatch = Math.abs(difference) < 0.01; // Allow for floating point errors
+
+            // Generate message
+            let message;
+            if (isMatch) {
+                message = '✓ Totals match! Replacements sum to $' + originalTotal.toFixed(2);
+            } else if (difference > 0) {
+                message = '✗ Totals don\'t match. Need $' + difference.toFixed(2) + ' more to reach $' + originalTotal.toFixed(2);
+            } else {
+                message = '✗ Totals don\'t match. $' + Math.abs(difference).toFixed(2) + ' over the target of $' + originalTotal.toFixed(2);
+            }
+
+            return {
+                isValid: isMatch,
+                difference: difference,
+                message: message,
+                originalTotal: originalTotal,
+                newTotal: newTotal
+            };
+        }
+
+        /**
+         * Find running total patterns in text
+         * @param {String} text - The text to search
+         * @returns {Array} Array of found patterns [{pattern, value, position, context}]
+         */
+        function findRunningTotalPatterns(text) {
+            const patterns = [];
+
+            // Define regex patterns to search for running totals
+            const searchPatterns = [
+                // "Total: $XXX" or "Total $XXX"
+                /(?:total:?\s*\$?\s*)([\d,]+\.?\d*)/gi,
+                // "Running Total: $XXX"
+                /(?:running\s+total:?\s*\$?\s*)([\d,]+\.?\d*)/gi,
+                // "Cumulative: $XXX"
+                /(?:cumulative:?\s*\$?\s*)([\d,]+\.?\d*)/gi,
+                // "$XXX total"
+                /\$\s*([\d,]+\.?\d*)\s+total/gi,
+                // "Balance: $XXX"
+                /(?:balance:?\s*\$?\s*)([\d,]+\.?\d*)/gi,
+                // "Sum: $XXX"
+                /(?:sum:?\s*\$?\s*)([\d,]+\.?\d*)/gi,
+                // Standalone $XXX.XX pattern (greedy, finds all dollar amounts)
+                /\$\s*([\d,]+\.?\d*)/g
+            ];
+
+            // Search for each pattern
+            searchPatterns.forEach((regex) => {
+                let match;
+                while ((match = regex.exec(text)) !== null) {
+                    const position = match.index;
+                    const fullMatch = match[0];
+                    const numericValue = parseFloat(match[1].replace(/,/g, ''));
+
+                    // Extract context (50 chars before and after)
+                    const contextStart = Math.max(0, position - 50);
+                    const contextEnd = Math.min(text.length, position + fullMatch.length + 50);
+                    const context = text.substring(contextStart, contextEnd);
+
+                    patterns.push({
+                        pattern: fullMatch,
+                        value: numericValue,
+                        position: position,
+                        context: (contextStart > 0 ? '...' : '') + context + (contextEnd < text.length ? '...' : '')
+                    });
+                }
+            });
+
+            // Remove duplicates based on position
+            const uniquePatterns = [];
+            const seenPositions = new Set();
+
+            patterns.forEach(pattern => {
+                if (!seenPositions.has(pattern.position)) {
+                    seenPositions.add(pattern.position);
+                    uniquePatterns.push(pattern);
+                }
+            });
+
+            // Sort by position
+            uniquePatterns.sort((a, b) => a.position - b.position);
+
+            return uniquePatterns;
+        }
+
+        /**
+         * Apply all replacements to the text
+         * @param {String} text - Original text
+         * @param {Array} occurrences - Array of occurrence objects
+         * @param {Map} replacementMap - Map of replacements
+         * @returns {String} Modified text with replacements applied
+         */
+        function applyReplacements(text, occurrences, replacementMap) {
+            let modifiedText = text;
+            let offset = 0; // Track offset due to length changes
+
+            // Sort occurrences by position to process from beginning to end
+            const sortedOccurrences = [...occurrences].sort((a, b) => a.position - b.position);
+
+            sortedOccurrences.forEach((occurrence) => {
+                const replacement = replacementMap.get(occurrence.id);
+
+                if (replacement && (replacement.newName || replacement.newValue > 0)) {
+                    const adjustedPosition = occurrence.position + offset;
+
+                    // Build the original text to replace (match + value)
+                    const originalMatch = occurrence.match;
+                    const originalValue = occurrence.nearbyValue.toFixed(2);
+
+                    // Find the occurrence in the text
+                    const searchStart = adjustedPosition;
+                    const searchEnd = searchStart + originalMatch.length + 20; // Look ahead for the value
+                    const segment = modifiedText.substring(searchStart, searchEnd);
+
+                    // Build replacement string
+                    const newName = replacement.newName || originalMatch;
+                    const newValue = replacement.newValue > 0 ? replacement.newValue.toFixed(2) : originalValue;
+
+                    // Try to preserve the original format (e.g., if it had $ or specific spacing)
+                    const valuePattern = new RegExp(originalValue.replace('.', '\\.'));
+                    const newSegment = segment.replace(originalMatch, newName).replace(valuePattern, newValue);
+
+                    // Calculate offset change
+                    const lengthDiff = newSegment.length - segment.length;
+                    offset += lengthDiff;
+
+                    // Apply the replacement
+                    modifiedText = modifiedText.substring(0, searchStart) + newSegment + modifiedText.substring(searchEnd);
+                }
+            });
+
+            return modifiedText;
+        }
+
+        /**
+         * Calculate totals summary from occurrences
+         * @param {Array} occurrences - Array of occurrence objects
+         * @returns {Object} {originalTotal, count}
+         */
+        function calculateTotals(occurrences) {
+            if (!occurrences || occurrences.length === 0) {
+                return {
+                    originalTotal: 0,
+                    count: 0
+                };
+            }
+
+            const originalTotal = occurrences[occurrences.length - 1].runningTotalAtThisPoint;
+
+            return {
+                originalTotal: originalTotal,
+                count: occurrences.length
+            };
         }
 
         // ============================================
