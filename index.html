@@ -1291,6 +1291,39 @@
 
             // Preview toggle handler
             document.getElementById('previewToggle').addEventListener('click', togglePreview);
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', handleKeyboardShortcuts);
+        }
+
+        // ============================================
+        // KEYBOARD SHORTCUTS
+        // ============================================
+        function handleKeyboardShortcuts(event) {
+            // Ctrl+D or Cmd+D: Download
+            if ((event.ctrlKey || event.metaKey) && event.key === 'd') {
+                event.preventDefault();
+                const downloadBtn = document.getElementById('downloadBtn');
+                if (!downloadBtn.disabled) {
+                    handleDownload();
+                }
+            }
+
+            // Ctrl+Z or Cmd+Z: Undo (clear all replacements)
+            if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
+                event.preventDefault();
+                handleClearAllReplacements();
+            }
+
+            // Enter key in value input: move to next field
+            if (event.key === 'Enter' && event.target.classList.contains('new-value-input')) {
+                event.preventDefault();
+                const allValueInputs = Array.from(document.querySelectorAll('.new-value-input'));
+                const currentIndex = allValueInputs.indexOf(event.target);
+                if (currentIndex >= 0 && currentIndex < allValueInputs.length - 1) {
+                    allValueInputs[currentIndex + 1].focus();
+                }
+            }
         }
 
         // ============================================
