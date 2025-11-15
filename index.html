@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Parser & Editor</title>
+    <title>PDF Editor - Direct PDF Editing</title>
 
     <!-- PDF.js Library from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <!-- pdf-lib Library from CDN -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
     <style>
         * {
@@ -19,12 +22,12 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 16px;
             color: #333;
         }
 
-        .container {
-            max-width: 1600px;
+        .app-container {
+            max-width: 1800px;
             margin: 0 auto;
             background: white;
             border-radius: 16px;
@@ -32,931 +35,81 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 40px);
+            height: calc(100vh - 32px);
         }
 
-        header {
+        /* TOP HEADER */
+        .app-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 24px 32px;
-            text-align: center;
+            padding: 20px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid rgba(255, 255, 255, 0.3);
         }
 
-        header h1 {
-            font-size: 32px;
-            font-weight: 600;
-            margin-bottom: 8px;
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
 
-        header p {
+        .app-title {
+            font-size: 28px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .currency-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 16px;
+            border-radius: 20px;
             font-size: 14px;
-            opacity: 0.9;
+            font-weight: 600;
+            border: 2px solid rgba(255, 255, 255, 0.4);
         }
 
-        .main-content {
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .file-badge {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-badge-label {
+            opacity: 0.8;
+        }
+
+        .file-badge-value {
+            font-weight: 700;
+        }
+
+        /* MAIN LAYOUT - 3 COLUMNS */
+        .main-layout {
             display: grid;
-            grid-template-columns: 350px 1fr 400px;
+            grid-template-columns: 320px 1fr 380px;
             gap: 0;
             flex: 1;
             overflow: hidden;
         }
 
         .panel {
-            padding: 24px;
             overflow-y: auto;
-            border-right: 1px solid #e5e7eb;
-        }
-
-        .panel:last-child {
-            border-right: none;
-        }
-
-        .panel-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid #667eea;
-        }
-
-        /* Left Panel - Upload & Search */
-        .upload-section {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            border: 2px dashed #667eea;
-            border-radius: 12px;
-            padding: 32px;
-            text-align: center;
-            margin-bottom: 24px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .upload-section:hover {
-            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-            border-color: #764ba2;
-        }
-
-        .upload-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-
-        .upload-section h3 {
-            font-size: 16px;
-            color: #667eea;
-            margin-bottom: 8px;
-        }
-
-        .upload-section p {
-            font-size: 14px;
-            color: #6b7280;
-        }
-
-        .search-section {
-            background: #f9fafb;
-            border-radius: 12px;
-            padding: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: #374151;
-            margin-bottom: 8px;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-secondary {
-            background: #e5e7eb;
-            color: #374151;
-            margin-top: 8px;
-        }
-
-        .btn-secondary:hover {
-            background: #d1d5db;
-        }
-
-        /* File Info Section */
-        .file-info-section {
-            background: #f0fdf4;
-            border: 1px solid #86efac;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 24px;
-            display: none;
-        }
-
-        .file-info-section.visible {
-            display: block;
-        }
-
-        .file-info-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 12px;
-            font-weight: 600;
-            color: #15803d;
-        }
-
-        .file-info-grid {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 8px 12px;
-            font-size: 13px;
-        }
-
-        .file-info-label {
-            color: #6b7280;
-            font-weight: 500;
-        }
-
-        .file-info-value {
-            color: #1f2937;
-            font-weight: 600;
-        }
-
-        /* Text Preview Section */
-        .text-preview-section {
-            background: #f9fafb;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 24px;
-            display: none;
-        }
-
-        .text-preview-section.visible {
-            display: block;
-        }
-
-        .preview-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .preview-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #374151;
-        }
-
-        .preview-toggle {
-            font-size: 12px;
-            color: #667eea;
-            cursor: pointer;
-            padding: 4px 8px;
             background: white;
-            border: 1px solid #667eea;
-            border-radius: 4px;
-            transition: all 0.2s ease;
         }
 
-        .preview-toggle:hover {
-            background: #667eea;
-            color: white;
-        }
-
-        .text-preview-content {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 12px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.6;
-            color: #374151;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-
-        .text-preview-content.expanded {
-            max-height: 400px;
-        }
-
-        .text-preview-content::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .text-preview-content::-webkit-scrollbar-thumb {
-            background: #667eea;
-            border-radius: 3px;
-        }
-
-        /* Middle Panel - Found Items */
-        .items-list {
-            background: #f9fafb;
-            border-radius: 12px;
-            padding: 16px;
-            min-height: 200px;
-        }
-
-        .placeholder-text {
-            text-align: center;
-            color: #9ca3af;
-            padding: 60px 20px;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-
-        .item-card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-            transition: all 0.2s ease;
-        }
-
-        .item-card:hover {
-            border-color: #667eea;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
-        }
-
-        .item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .item-name {
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .item-value {
-            font-weight: 700;
-            color: #667eea;
-        }
-
-        .item-details {
-            font-size: 12px;
-            color: #6b7280;
-        }
-
-        /* Right Panel - Replacement Mapping */
-        .mapping-table {
-            background: #f9fafb;
-            border-radius: 12px;
-            padding: 16px;
-            min-height: 200px;
-        }
-
-        .mapping-row {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-
-        .mapping-header {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            gap: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #6b7280;
-            margin-bottom: 12px;
-            text-transform: uppercase;
-        }
-
-        .mapping-arrow {
-            text-align: center;
-            color: #667eea;
-            font-size: 18px;
-        }
-
-        .mapping-item {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: start;
-            gap: 12px;
-        }
-
-        .mapping-original, .mapping-new {
-            font-size: 13px;
-        }
-
-        .mapping-original {
-            color: #ef4444;
-            text-decoration: line-through;
-        }
-
-        .mapping-new {
-            color: #10b981;
-            font-weight: 600;
-        }
-
-        /* Mapping Input Fields */
-        .mapping-card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 14px;
-            margin-bottom: 10px;
-            transition: all 0.2s ease;
-        }
-
-        .mapping-card:hover {
-            border-color: #667eea;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
-        }
-
-        .mapping-card-header {
-            font-size: 13px;
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .mapping-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .mapping-field {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .mapping-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #6b7280;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-        }
-
-        .mapping-value {
-            font-size: 13px;
-            padding: 6px;
-            background: #f9fafb;
-            border-radius: 4px;
-            color: #1f2937;
-        }
-
-        .mapping-value.original {
-            color: #ef4444;
-            text-decoration: line-through;
-        }
-
-        .mapping-value.new {
-            color: #10b981;
-            font-weight: 600;
-        }
-
-        .mapping-input {
-            width: 100%;
-            padding: 6px 8px;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            font-size: 13px;
-            transition: all 0.2s ease;
-        }
-
-        .mapping-input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
-        }
-
-        .mapping-totals {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid #e5e7eb;
-        }
-
-        .mapping-total-item {
-            font-size: 11px;
-        }
-
-        .mapping-total-label {
-            color: #6b7280;
-            font-weight: 500;
-        }
-
-        .mapping-total-value {
-            font-weight: 700;
-            font-size: 12px;
-        }
-
-        .fill-remaining-btn {
-            width: 100%;
-            padding: 10px;
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 12px;
-            transition: all 0.3s ease;
-        }
-
-        .fill-remaining-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-        }
-
-        .fill-remaining-btn:disabled {
-            background: #d1d5db;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .auto-fill-note {
-            margin-top: 8px;
-            padding: 8px;
-            background: #fef3c7;
-            border: 1px solid #fcd34d;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #92400e;
-            display: none;
-        }
-
-        .auto-fill-note.visible {
-            display: block;
-        }
-
-        /* Bottom Section - Validation & Download */
-        .bottom-section {
-            border-top: 1px solid #e5e7eb;
-            padding: 24px 32px;
-            background: #f9fafb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .validation-status {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #9ca3af;
-        }
-
-        .status-indicator.valid {
-            background: #10b981;
-        }
-
-        .status-indicator.invalid {
-            background: #ef4444;
-        }
-
-        .status-text {
-            font-size: 14px;
-            color: #374151;
-        }
-
-        .totals-display {
-            display: flex;
-            gap: 24px;
-            font-size: 14px;
-        }
-
-        .total-item {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .total-label {
-            font-size: 12px;
-            color: #6b7280;
-            margin-bottom: 4px;
-        }
-
-        .total-value {
-            font-weight: 700;
-            font-size: 18px;
-        }
-
-        .total-value.original {
-            color: #ef4444;
-        }
-
-        .total-value.new {
-            color: #10b981;
-        }
-
-        .btn-download {
-            padding: 14px 32px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-download:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-        }
-
-        .btn-download:disabled {
-            background: #d1d5db;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-preview {
-            padding: 14px 32px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-right: 12px;
-        }
-
-        .btn-preview:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-preview:disabled {
-            background: #d1d5db;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* Preview Modal */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-overlay.visible {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 16px;
-            width: 90%;
-            max-width: 1200px;
-            max-height: 80vh;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-title {
-            font-size: 20px;
-            font-weight: 600;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 28px;
-            cursor: pointer;
-            padding: 0;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-            transition: background 0.2s ease;
-        }
-
-        .modal-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .modal-body {
-            padding: 24px;
-            max-height: calc(80vh - 140px);
-            overflow-y: auto;
-        }
-
-        .diff-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        .diff-panel {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .diff-panel-header {
-            background: #f3f4f6;
-            padding: 12px 16px;
-            font-weight: 600;
-            font-size: 14px;
-            color: #374151;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .diff-panel-content {
-            padding: 16px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            max-height: 500px;
-            overflow-y: auto;
-        }
-
-        .diff-highlight {
-            background: #fef3c7;
-            padding: 2px 4px;
-            border-radius: 2px;
-        }
-
-        .diff-highlight.old {
-            background: #fee2e2;
-            text-decoration: line-through;
-        }
-
-        .diff-highlight.new {
-            background: #dcfce7;
-            font-weight: 600;
-        }
-
-        /* Toast Notifications */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 2000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .toast {
-            background: white;
-            border-left: 4px solid #667eea;
-            border-radius: 8px;
-            padding: 16px 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            min-width: 300px;
-            max-width: 400px;
-            animation: slideIn 0.3s ease-out;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .toast.success {
-            border-left-color: #10b981;
-        }
-
-        .toast.error {
-            border-left-color: #ef4444;
-        }
-
-        .toast.warning {
-            border-left-color: #f59e0b;
-        }
-
-        .toast-icon {
-            font-size: 20px;
-        }
-
-        .toast-message {
-            flex: 1;
-            font-size: 14px;
-            color: #374151;
-        }
-
-        .toast-close {
-            background: none;
-            border: none;
-            color: #9ca3af;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 0;
-            width: 20px;
-            height: 20px;
-        }
-
-        .toast-close:hover {
-            color: #374151;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        /* Change Log Panel */
-        .change-log {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 16px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .change-log-header {
-            font-size: 14px;
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .change-log-count {
-            font-size: 12px;
-            color: #6b7280;
-            font-weight: 500;
-        }
-
-        .change-log-item {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 10px 12px;
-            margin-bottom: 8px;
-            font-size: 12px;
-            font-family: 'Courier New', monospace;
-            line-height: 1.6;
-        }
-
-        .change-log-item .old-value {
-            color: #ef4444;
-            text-decoration: line-through;
-        }
-
-        .change-log-item .new-value {
-            color: #10b981;
-            font-weight: 600;
-        }
-
-        .change-log-item .arrow {
-            color: #667eea;
-            margin: 0 8px;
-        }
-
-        .change-log-empty {
-            text-align: center;
-            color: #9ca3af;
-            padding: 20px;
-            font-size: 13px;
-        }
-
-        /* Validation Warning */
-        .mapping-input.warning {
-            border-color: #f59e0b;
-            background: #fef3c7;
-        }
-
-        .mapping-input.error {
-            border-color: #ef4444;
-            background: #fee2e2;
-        }
-
-        /* Quick Actions */
-        .quick-actions {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-        }
-
-        .btn-quick {
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: 600;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-quick-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-quick-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-quick-secondary {
-            background: #f3f4f6;
-            color: #374151;
-            border: 1px solid #e5e7eb;
-        }
-
-        .btn-quick-secondary:hover {
-            background: #e5e7eb;
-        }
-
-        .btn-quick-danger {
-            background: #fee2e2;
-            color: #dc2626;
-            border: 1px solid #fecaca;
-        }
-
-        .btn-quick-danger:hover {
-            background: #fecaca;
-        }
-
-        /* Scrollbar Styling */
         .panel::-webkit-scrollbar {
             width: 8px;
         }
@@ -974,2208 +127,753 @@
             background: #764ba2;
         }
 
+        /* LEFT PANEL */
+        .left-panel {
+            border-right: 2px solid #e5e7eb;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #667eea;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .upload-zone {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf4 100%);
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-zone:hover {
+            background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+            border-color: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .search-section {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn-quick {
+            padding: 10px 16px;
+            font-size: 13px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-quick:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+        }
+
+        .status-panel {
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            font-size: 13px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #10b981;
+        }
+
+        .status-indicator.inactive {
+            background: #9ca3af;
+        }
+
+        .status-label {
+            flex: 1;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .status-value {
+            font-weight: 700;
+            color: #15803d;
+        }
+
+        /* CENTER PANEL - PDF VIEWER */
+        .center-panel {
+            background: #f9fafb;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pdf-viewer-container {
+            width: 100%;
+            height: 100%;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .pdf-toolbar {
+            background: #f3f4f6;
+            border-bottom: 2px solid #e5e7eb;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .pdf-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .pdf-control-btn {
+            padding: 6px 12px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .pdf-control-btn:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+        }
+
+        .pdf-page-info {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .pdf-zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pdf-canvas-container {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e5e7eb;
+        }
+
+        .pdf-placeholder {
+            text-align: center;
+            color: #9ca3af;
+            padding: 60px 40px;
+        }
+
+        .pdf-placeholder-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .pdf-placeholder-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+
+        .pdf-placeholder-hint {
+            font-size: 14px;
+            color: #9ca3af;
+            line-height: 1.6;
+        }
+
+        #pdfCanvas {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+
+        /* RIGHT PANEL */
+        .right-panel {
+            border-left: 2px solid #e5e7eb;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .mapping-table {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .mapping-header {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 12px;
+            padding: 12px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .mapping-header-cell {
+            font-size: 12px;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .mapping-row {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 12px;
+            padding: 12px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .mapping-original {
+            font-size: 13px;
+            color: #ef4444;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .mapping-arrow {
+            font-size: 18px;
+            color: #667eea;
+        }
+
+        .mapping-new {
+            font-size: 13px;
+            color: #10b981;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .mapping-placeholder {
+            text-align: center;
+            color: #9ca3af;
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+
+        .totals-section {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .totals-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .total-item {
+            text-align: center;
+        }
+
+        .total-label {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .total-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .total-value.original {
+            color: #ef4444;
+        }
+
+        .total-value.new {
+            color: #10b981;
+        }
+
+        .validation-badge {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .validation-badge.valid {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+
+        .validation-badge.invalid {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+
+        .download-section {
+            margin-top: auto;
+        }
+
+        .btn-download {
+            width: 100%;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-download:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         /* Responsive Design */
-        @media (max-width: 1200px) {
-            .main-content {
-                grid-template-columns: 300px 1fr 350px;
+        @media (max-width: 1400px) {
+            .main-layout {
+                grid-template-columns: 280px 1fr 340px;
             }
         }
 
-        @media (max-width: 900px) {
-            .main-content {
+        @media (max-width: 1024px) {
+            .main-layout {
                 grid-template-columns: 1fr;
             }
 
-            .panel {
-                border-right: none;
-                border-bottom: 1px solid #e5e7eb;
+            .left-panel,
+            .right-panel {
+                border: none;
+                border-bottom: 2px solid #e5e7eb;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header>
-            <h1>📄 PDF Parser & Editor</h1>
-            <p>Upload, Search, Replace, and Download - All in Your Browser</p>
+    <div class="app-container">
+        <!-- TOP HEADER -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="app-title">
+                    <span>📄</span>
+                    <span>PDF Editor</span>
+                </div>
+                <div class="currency-badge">
+                    💵 USD
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="file-badge">
+                    <span class="file-badge-label">File:</span>
+                    <span class="file-badge-value">No file loaded</span>
+                </div>
+                <div class="file-badge">
+                    <span class="file-badge-label">Pages:</span>
+                    <span class="file-badge-value">0</span>
+                </div>
+            </div>
         </header>
 
-        <!-- Main Content Grid -->
-        <div class="main-content">
-            <!-- Left Panel: Upload & Search Controls -->
-            <div class="panel">
-                <h2 class="panel-title">📤 Upload & Search</h2>
-
-                <div class="upload-section" id="uploadSection">
-                    <div class="upload-icon">📁</div>
-                    <h3>Click to Upload PDF</h3>
-                    <p>Or drag and drop your PDF file here</p>
-                    <input type="file" id="pdfInput" accept=".pdf" style="display: none;">
-                </div>
-
-                <!-- File Info Section -->
-                <div class="file-info-section" id="fileInfoSection">
-                    <div class="file-info-header">
-                        ✅ PDF Loaded Successfully
+        <!-- MAIN LAYOUT - 3 COLUMNS -->
+        <div class="main-layout">
+            <!-- LEFT PANEL -->
+            <div class="panel left-panel">
+                <!-- Upload Section -->
+                <div>
+                    <div class="section-title">
+                        📤 Upload PDF
                     </div>
-                    <div class="file-info-grid">
-                        <span class="file-info-label">Filename:</span>
-                        <span class="file-info-value" id="fileName">-</span>
-
-                        <span class="file-info-label">Pages:</span>
-                        <span class="file-info-value" id="pageCount">-</span>
-
-                        <span class="file-info-label">Characters:</span>
-                        <span class="file-info-value" id="charCount">-</span>
+                    <div class="upload-zone" id="uploadZone">
+                        <div class="upload-icon">📁</div>
+                        <div class="upload-text">Click or Drag PDF Here</div>
+                        <div class="upload-hint">Edits happen locally in your browser</div>
+                        <input type="file" id="pdfInput" accept=".pdf" style="display: none;">
                     </div>
                 </div>
 
-                <!-- Text Preview Section -->
-                <div class="text-preview-section" id="textPreviewSection">
-                    <div class="preview-header">
-                        <span class="preview-title">📝 Extracted Text Preview</span>
-                        <button class="preview-toggle" id="previewToggle">Expand</button>
+                <!-- Search Section -->
+                <div>
+                    <div class="section-title">
+                        🔍 Search & Replace
                     </div>
-                    <div class="text-preview-content" id="textPreviewContent">
-                        No text extracted yet
-                    </div>
-                </div>
-
-                <div class="search-section">
-                    <div class="form-group">
-                        <label for="searchTerm">Search Term</label>
-                        <input
-                            type="text"
-                            id="searchTerm"
-                            placeholder="e.g., abc, invoice item, product name..."
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label for="contextWords">Context Words Before/After</label>
-                        <input
-                            type="number"
-                            id="contextWords"
-                            value="5"
-                            min="0"
-                            max="20"
-                        >
-                    </div>
-
-                    <button class="btn btn-primary" id="searchBtn">
-                        🔍 Search PDF
-                    </button>
-
-                    <button class="btn btn-secondary" id="clearBtn">
-                        🗑️ Clear Results
-                    </button>
-
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
-                        <div style="margin-bottom: 8px; font-size: 13px; color: #64748b;">
-                            <strong>No PDF?</strong> Try demo mode:
+                    <div class="search-section">
+                        <div class="input-group">
+                            <label class="input-label">Search Term</label>
+                            <input type="text" class="input-field" placeholder="e.g., abc, item, product..." id="searchTerm">
                         </div>
-                        <button class="btn" id="loadDemoBtn" style="width: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                            🎯 Load Sample Data (Demo)
+                        <div class="input-group">
+                            <button class="btn btn-primary" id="searchBtn">
+                                <span>🔎</span>
+                                <span>Find in PDF</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div>
+                    <div class="section-title">
+                        ⚡ Quick Actions
+                    </div>
+                    <div class="quick-actions">
+                        <button class="btn-quick">
+                            <span>🔄</span>
+                            <span>Replace All</span>
+                        </button>
+                        <button class="btn-quick">
+                            <span>📤</span>
+                            <span>Export Mapping</span>
+                        </button>
+                        <button class="btn-quick">
+                            <span>📥</span>
+                            <span>Import Mapping</span>
+                        </button>
+                        <button class="btn-quick">
+                            <span>🗑️</span>
+                            <span>Clear All</span>
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Middle Panel: Found Items List -->
-            <div class="panel">
-                <h2 class="panel-title">📋 Found Items</h2>
-
-                <div class="items-list" id="itemsList">
-                    <div class="placeholder-text">
-                        <p><strong>No items found yet.</strong></p>
-                        <p>Upload a PDF and search for items to see them listed here.</p>
-                        <br>
-                        <p>Each found item will display:</p>
-                        <ul style="text-align: left; display: inline-block; margin-top: 12px;">
-                            <li>Item name/description</li>
-                            <li>Current value/amount</li>
-                            <li>Location in document (page, position)</li>
-                            <li>Surrounding context</li>
-                        </ul>
+                <!-- Status Panel -->
+                <div>
+                    <div class="section-title">
+                        📊 Status
+                    </div>
+                    <div class="status-panel">
+                        <div class="status-item">
+                            <div class="status-indicator inactive"></div>
+                            <div class="status-label">PDF Loaded</div>
+                            <div class="status-value">No</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-indicator inactive"></div>
+                            <div class="status-label">Items Found</div>
+                            <div class="status-value">0</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-indicator inactive"></div>
+                            <div class="status-label">Replacements</div>
+                            <div class="status-value">0</div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Panel: Replacement Mapping -->
-            <div class="panel">
-                <h2 class="panel-title">🔄 Replacement Mapping</h2>
+            <!-- CENTER PANEL - PDF VIEWER -->
+            <div class="panel center-panel">
+                <div class="pdf-viewer-container">
+                    <div class="pdf-toolbar">
+                        <div class="pdf-controls">
+                            <button class="pdf-control-btn">◀ Prev</button>
+                            <span class="pdf-page-info">Page 1 of 1</span>
+                            <button class="pdf-control-btn">Next ▶</button>
+                        </div>
+                        <div class="pdf-zoom-controls">
+                            <button class="pdf-control-btn">−</button>
+                            <span class="pdf-page-info">100%</span>
+                            <button class="pdf-control-btn">+</button>
+                        </div>
+                    </div>
+                    <div class="pdf-canvas-container">
+                        <div class="pdf-placeholder">
+                            <div class="pdf-placeholder-icon">📄</div>
+                            <div class="pdf-placeholder-text">No PDF Loaded</div>
+                            <div class="pdf-placeholder-hint">
+                                Upload a PDF file to view and edit it directly<br>
+                                All editing happens in your browser - no uploads to servers
+                            </div>
+                        </div>
+                        <canvas id="pdfCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
 
-                <!-- Quick Actions -->
-                <div class="quick-actions" id="quickActions" style="display: none;">
-                    <button class="btn-quick btn-quick-primary" id="replaceAllBtn" title="Fill all items with same values">
-                        ⚡ Replace All
+            <!-- RIGHT PANEL -->
+            <div class="panel right-panel">
+                <!-- Replacement Mapping -->
+                <div>
+                    <div class="section-title">
+                        🔄 Replacement Mapping
+                    </div>
+                    <div class="mapping-table">
+                        <div class="mapping-header">
+                            <div class="mapping-header-cell">Original</div>
+                            <div class="mapping-header-cell"></div>
+                            <div class="mapping-header-cell">New</div>
+                        </div>
+                        <div class="mapping-placeholder">
+                            <p><strong>No replacements yet</strong></p>
+                            <p style="margin-top: 8px; font-size: 13px;">Search for items to begin mapping replacements</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Totals Section -->
+                <div>
+                    <div class="section-title">
+                        💰 Running Totals
+                    </div>
+                    <div class="totals-section">
+                        <div class="totals-grid">
+                            <div class="total-item">
+                                <div class="total-label">Original</div>
+                                <div class="total-value original">$0.00</div>
+                            </div>
+                            <div class="total-item">
+                                <div class="total-label">New</div>
+                                <div class="total-value new">$0.00</div>
+                            </div>
+                        </div>
+                        <div class="validation-badge valid">
+                            ✓ Totals Match
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Download Section -->
+                <div class="download-section">
+                    <button class="btn-download" disabled>
+                        <span>📥</span>
+                        <span>Download Modified PDF</span>
                     </button>
-                    <button class="btn-quick btn-quick-secondary" id="exportMappingBtn" title="Export mapping as JSON">
-                        📤 Export
-                    </button>
-                    <button class="btn-quick btn-quick-secondary" id="importMappingBtn" title="Import mapping from JSON">
-                        📥 Import
-                    </button>
-                    <button class="btn-quick btn-quick-danger" id="clearAllBtn" title="Clear all replacements">
-                        🗑️ Clear All
-                    </button>
-                    <input type="file" id="importMappingInput" accept=".json" style="display: none;">
-                </div>
-
-                <!-- Change Log -->
-                <div class="change-log" id="changeLog" style="display: none;">
-                    <div class="change-log-header">
-                        <span>📋 Change Log</span>
-                        <span class="change-log-count" id="changeLogCount">0 changes</span>
-                    </div>
-                    <div id="changeLogContent">
-                        <div class="change-log-empty">No changes yet. Start editing values to see the change log.</div>
-                    </div>
-                </div>
-
-                <div class="mapping-table" id="mappingTable">
-                    <div class="placeholder-text">
-                        <p><strong>Replacement mappings will appear here.</strong></p>
-                        <p>For each found item, you can specify:</p>
-                        <br>
-                        <ul style="text-align: left; display: inline-block; margin-top: 12px;">
-                            <li><strong>New Name:</strong> Replacement text for the item</li>
-                            <li><strong>New Value:</strong> Replacement amount/number</li>
-                        </ul>
-                        <br><br>
-                        <p>The table will show:</p>
-                        <p style="color: #ef4444; margin-top: 8px;">❌ Original → ✅ Replacement</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bottom Section: Validation & Download -->
-        <div class="bottom-section">
-            <div class="validation-status">
-                <div class="status-indicator" id="statusIndicator"></div>
-                <div class="status-text" id="statusText">
-                    Ready to process your PDF
-                </div>
-            </div>
-
-            <div class="totals-display">
-                <div class="total-item">
-                    <span class="total-label">Original Total</span>
-                    <span class="total-value original" id="originalTotal">$0.00</span>
-                </div>
-                <div class="total-item">
-                    <span class="total-label">New Total</span>
-                    <span class="total-value new" id="newTotal">$0.00</span>
-                </div>
-            </div>
-
-            <div>
-                <button class="btn-preview" id="previewBtn" disabled>
-                    👁️ Preview Changes
-                </button>
-                <button class="btn-download" id="downloadBtn" disabled>
-                    ⬇️ Download Modified File
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Preview Modal -->
-    <div class="modal-overlay" id="previewModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Preview Changes</h2>
-                <button class="modal-close" id="closePreviewBtn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="diff-container">
-                    <div class="diff-panel">
-                        <div class="diff-panel-header">Original Text (First 1000 chars)</div>
-                        <div class="diff-panel-content" id="originalTextPreview"></div>
-                    </div>
-                    <div class="diff-panel">
-                        <div class="diff-panel-header">Modified Text (First 1000 chars)</div>
-                        <div class="diff-panel-content" id="modifiedTextPreview"></div>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Download Fallback Modal -->
-    <div class="modal-overlay" id="downloadFallbackModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Download Failed - Text Preview</h2>
-                <button class="modal-close" id="closeDownloadFallbackBtn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div style="margin-bottom: 16px; padding: 12px; background: #fee2e2; border-radius: 8px; color: #991b1b;">
-                    <strong>Download blocked by browser.</strong> You can copy the text below and save it manually.
-                </div>
-                <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-                    <button class="action-btn" id="copyToClipboardBtn" style="flex: 1;">
-                        Copy All Text to Clipboard
-                    </button>
-                    <button class="action-btn" id="retryDownloadBtn" style="flex: 1;">
-                        Retry Download
-                    </button>
-                </div>
-                <div style="margin-bottom: 8px; font-size: 12px; color: #666;">
-                    Modified Text (Full Content):
-                </div>
-                <textarea id="downloadFallbackText" readonly style="
-                    width: 100%;
-                    height: 400px;
-                    font-family: 'Courier New', monospace;
-                    font-size: 12px;
-                    padding: 12px;
-                    border: 1px solid #cbd5e0;
-                    border-radius: 8px;
-                    resize: vertical;
-                    background: #f7fafc;
-                "></textarea>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast Container -->
-    <div class="toast-container" id="toastContainer"></div>
 
     <script>
         // ============================================
         // GLOBAL STATE
         // ============================================
         const appState = {
-            pdfText: '',           // Extracted text from PDF
-            fileName: '',          // Original filename
-            pageCount: 0,          // Number of pages in PDF
-            occurrences: [],       // Array of found items with context
-            replacements: new Map() // Map of replacements: original -> {newName, newValue}
+            pdfDocument: null,
+            pdfBytes: null,
+            fileName: '',
+            currentPage: 1,
+            totalPages: 0,
+            zoom: 1.0,
+            searchResults: [],
+            replacements: new Map()
         };
-
-        let pdfDocument = null;
 
         // ============================================
         // INITIALIZATION
         // ============================================
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('PDF Parser & Editor initialized');
+            console.log('PDF Editor initialized');
+            console.log('Libraries loaded:', {
+                pdfjs: typeof pdfjsLib !== 'undefined',
+                pdflib: typeof PDFLib !== 'undefined'
+            });
 
-            // Set PDF.js worker
-            pdfjsLib.GlobalWorkerOptions.workerSrc =
-                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            // Setup PDF.js worker
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc =
+                    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
 
-            // Initialize event listeners
-            initializeEventListeners();
-        });
-
-        // ============================================
-        // EVENT LISTENERS
-        // ============================================
-        function initializeEventListeners() {
-            const uploadSection = document.getElementById('uploadSection');
+            // Setup upload zone
+            const uploadZone = document.getElementById('uploadZone');
             const pdfInput = document.getElementById('pdfInput');
 
-            // Upload section click handler
-            uploadSection.addEventListener('click', function() {
+            uploadZone.addEventListener('click', () => {
                 pdfInput.click();
             });
 
-            // File input change handler
+            // Placeholder event listeners (functionality to be implemented)
             pdfInput.addEventListener('change', handleFileUpload);
-
-            // Drag and drop handlers
-            uploadSection.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadSection.style.background = 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)';
-            });
-
-            uploadSection.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadSection.style.background = 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)';
-            });
-
-            uploadSection.addEventListener('drop', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadSection.style.background = 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)';
-
-                const files = e.dataTransfer.files;
-                if (files.length > 0 && files[0].type === 'application/pdf') {
-                    handleFileUpload({ target: { files: files } });
-                } else {
-                    alert('Please drop a valid PDF file');
-                }
-            });
-
-            // Search button handler
             document.getElementById('searchBtn').addEventListener('click', handleSearch);
 
-            // Clear button handler
-            document.getElementById('clearBtn').addEventListener('click', handleClear);
-
-            // Demo mode button handler
-            document.getElementById('loadDemoBtn').addEventListener('click', loadSampleData);
-
-            // Download button handler
-            document.getElementById('downloadBtn').addEventListener('click', handleDownload);
-
-            // Preview button handler
-            document.getElementById('previewBtn').addEventListener('click', handlePreviewChanges);
-
-            // Preview modal close handler
-            document.getElementById('closePreviewBtn').addEventListener('click', closePreviewModal);
-
-            // Close modal when clicking outside
-            document.getElementById('previewModal').addEventListener('click', function(e) {
-                if (e.target.id === 'previewModal') {
-                    closePreviewModal();
-                }
-            });
-
-            // Download fallback modal close handler
-            document.getElementById('closeDownloadFallbackBtn').addEventListener('click', closeDownloadFallbackModal);
-
-            // Download fallback modal - close when clicking outside
-            document.getElementById('downloadFallbackModal').addEventListener('click', function(e) {
-                if (e.target.id === 'downloadFallbackModal') {
-                    closeDownloadFallbackModal();
-                }
-            });
-
-            // Copy to clipboard button
-            document.getElementById('copyToClipboardBtn').addEventListener('click', copyDownloadTextToClipboard);
-
-            // Retry download button
-            document.getElementById('retryDownloadBtn').addEventListener('click', retryDownload);
-
-            // Preview toggle handler
-            document.getElementById('previewToggle').addEventListener('click', togglePreview);
-
-            // Quick action button handlers
-            document.getElementById('replaceAllBtn').addEventListener('click', handleReplaceAll);
-            document.getElementById('exportMappingBtn').addEventListener('click', handleExportMapping);
-            document.getElementById('importMappingBtn').addEventListener('click', handleImportMapping);
-
-            // Keyboard shortcuts
-            document.addEventListener('keydown', handleKeyboardShortcuts);
-        }
+            console.log('Event listeners attached');
+        });
 
         // ============================================
-        // KEYBOARD SHORTCUTS
-        // ============================================
-        function handleKeyboardShortcuts(event) {
-            // Ctrl+D or Cmd+D: Download
-            if ((event.ctrlKey || event.metaKey) && event.key === 'd') {
-                event.preventDefault();
-                const downloadBtn = document.getElementById('downloadBtn');
-                if (!downloadBtn.disabled) {
-                    handleDownload();
-                }
-            }
-
-            // Ctrl+Z or Cmd+Z: Undo (clear all replacements)
-            if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
-                event.preventDefault();
-                handleClearAllReplacements();
-            }
-
-            // Enter key in value input: move to next field
-            if (event.key === 'Enter' && event.target.classList.contains('new-value-input')) {
-                event.preventDefault();
-                const allValueInputs = Array.from(document.querySelectorAll('.new-value-input'));
-                const currentIndex = allValueInputs.indexOf(event.target);
-                if (currentIndex >= 0 && currentIndex < allValueInputs.length - 1) {
-                    allValueInputs[currentIndex + 1].focus();
-                }
-            }
-        }
-
-        // ============================================
-        // UTILITY FUNCTIONS
+        // PLACEHOLDER FUNCTIONS
         // ============================================
 
-        /**
-         * Clear all replacements (called by Ctrl+Z)
-         */
-        function handleClearAllReplacements() {
-            if (appState.replacements.size === 0) {
-                return;
-            }
-
-            if (confirm('Clear all replacements? This cannot be undone.')) {
-                appState.replacements.clear();
-
-                // Re-render mapping table to clear inputs
-                if (appState.occurrences.length > 0) {
-                    updateMappingTable(appState.occurrences);
-                }
-
-                // Recalculate
-                recalculateRunningTotals();
-                updateValidation();
-
-                showToast('All replacements cleared', 'info');
-            }
+        function handleFileUpload(event) {
+            console.log('File upload triggered (not implemented yet)');
+            // To be implemented in next prompt
         }
 
-        /**
-         * Replace all items with the same values
-         * Prompts user for name and value, then applies to all occurrences
-         */
-        function handleReplaceAll() {
-            if (!appState.occurrences || appState.occurrences.length === 0) {
-                alert('No items to replace. Please search for items first.');
-                return;
-            }
-
-            const newName = prompt('Enter new name for ALL items:', '');
-            if (newName === null) return; // User cancelled
-
-            const newValueStr = prompt('Enter new value for ALL items (e.g., 50.00):', '40.00');
-            if (newValueStr === null) return; // User cancelled
-
-            const newValue = parseFloat(newValueStr);
-            if (isNaN(newValue)) {
-                alert('Invalid value. Please enter a valid number.');
-                return;
-            }
-
-            // Apply to all occurrences
-            appState.occurrences.forEach((occurrence) => {
-                appState.replacements.set(occurrence.id, {
-                    newName: newName.trim(),
-                    newValue: newValue,
-                    newRunningTotal: 0
-                });
-            });
-
-            // Update UI
-            updateMappingTable(appState.occurrences);
-            recalculateRunningTotals();
-            updateValidation();
-
-            showToast(`Replaced all ${appState.occurrences.length} items with "${newName}" at $${newValue.toFixed(2)}`, 'success');
-        }
-
-        /**
-         * Export current replacement mapping as JSON file
-         */
-        function handleExportMapping() {
-            if (appState.replacements.size === 0) {
-                alert('No replacements to export. Please add some replacements first.');
-                return;
-            }
-
-            // Convert Map to plain object
-            const exportData = {
-                fileName: appState.fileName,
-                searchTerm: document.getElementById('searchTerm').value,
-                mappings: []
-            };
-
-            appState.replacements.forEach((replacement, id) => {
-                const occurrence = appState.occurrences.find(occ => occ.id === id);
-                if (occurrence) {
-                    exportData.mappings.push({
-                        originalMatch: occurrence.match,
-                        originalValue: occurrence.nearbyValue,
-                        newName: replacement.newName,
-                        newValue: replacement.newValue
-                    });
-                }
-            });
-
-            // Create JSON file
-            const jsonStr = JSON.stringify(exportData, null, 2);
-            const blob = new Blob([jsonStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-
-            // Download
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'pdf-mapping-' + Date.now() + '.json';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            showToast('Mapping exported successfully', 'success');
-        }
-
-        /**
-         * Import replacement mapping from JSON file
-         */
-        function handleImportMapping() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-
-            input.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                try {
-                    const text = await file.text();
-                    const importData = JSON.parse(text);
-
-                    if (!importData.mappings || !Array.isArray(importData.mappings)) {
-                        throw new Error('Invalid mapping file format');
-                    }
-
-                    // Clear existing replacements
-                    appState.replacements.clear();
-
-                    // Apply imported mappings
-                    let importedCount = 0;
-                    importData.mappings.forEach((mapping) => {
-                        // Find matching occurrence by original match text
-                        const occurrence = appState.occurrences.find(
-                            occ => occ.match === mapping.originalMatch
-                        );
-
-                        if (occurrence) {
-                            appState.replacements.set(occurrence.id, {
-                                newName: mapping.newName || '',
-                                newValue: mapping.newValue || 0,
-                                newRunningTotal: 0
-                            });
-                            importedCount++;
-                        }
-                    });
-
-                    // Update UI
-                    updateMappingTable(appState.occurrences);
-                    recalculateRunningTotals();
-                    updateValidation();
-
-                    showToast(`Imported ${importedCount} mappings successfully`, 'success');
-
-                } catch (error) {
-                    console.error('Import error:', error);
-                    alert('Error importing mapping:\n\n' + error.message);
-                    showToast('Failed to import mapping', 'error');
-                }
-            };
-
-            input.click();
-        }
-
-        /**
-         * Show toast notification
-         * @param {string} message - The message to display
-         * @param {string} type - Type of toast: 'success', 'error', 'info', 'warning'
-         */
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toastContainer');
-
-            const toast = document.createElement('div');
-            toast.className = 'toast toast-' + type;
-
-            // Icon based on type
-            let icon = 'ℹ️';
-            if (type === 'success') icon = '✓';
-            if (type === 'error') icon = '✗';
-            if (type === 'warning') icon = '⚠';
-
-            toast.innerHTML = `
-                <span class="toast-icon">${icon}</span>
-                <span class="toast-message">${message}</span>
-            `;
-
-            container.appendChild(toast);
-
-            // Show toast
-            setTimeout(() => toast.classList.add('show'), 10);
-
-            // Auto-hide after 3 seconds
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => container.removeChild(toast), 300);
-            }, 3000);
-        }
-
-        /**
-         * Validate file size and warn if too large
-         */
-        function validateFileSize(file) {
-            const maxSize = 100 * 1024 * 1024; // 100MB
-            if (file.size > maxSize) {
-                return confirm(
-                    'Warning: This PDF is very large (' + (file.size / 1024 / 1024).toFixed(2) + ' MB).\n\n' +
-                    'Processing may be slow and could use significant memory.\n\n' +
-                    'Continue anyway?'
-                );
-            }
-            return true;
-        }
-
-        /**
-         * Escape regex special characters in search term
-         */
-        function escapeRegex(str) {
-            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        }
-
-        // ============================================
-        // FILE UPLOAD HANDLER
-        // ============================================
-
-        /**
-         * Handle PDF file upload from user
-         * Validates file type and size, clears previous state, and parses the PDF
-         * @param {Event} event - File input change event
-         * @returns {Promise<void>}
-         */
-        async function handleFileUpload(event) {
-            const file = event.target.files[0];
-
-            if (!file) {
-                return;
-            }
-
-            // Validate file type
-            const validTypes = ['application/pdf', 'application/x-pdf'];
-            const isPDF = validTypes.includes(file.type) || file.name.toLowerCase().endsWith('.pdf');
-
-            if (!isPDF) {
-                alert('Please select a valid PDF file.\n\nFile type detected: ' + (file.type || 'unknown'));
-                return;
-            }
-
-            // Validate file size
-            if (!validateFileSize(file)) {
-                return;
-            }
-
-            try {
-                // Clear previous state to free memory
-                if (appState.pdfText) {
-                    const proceed = confirm('Loading a new PDF will clear all current work. Continue?');
-                    if (!proceed) {
-                        return;
-                    }
-
-                    // Clear previous data
-                    appState.pdfText = '';
-                    appState.occurrences = [];
-                    appState.replacements.clear();
-                    handleClear();
-                }
-
-                // Update UI to show loading state
-                updateStatus('Processing PDF...', 'loading');
-
-                // Parse the PDF
-                await parsePDF(file);
-
-                // Update UI to show success
-                updateStatus('PDF loaded successfully!', 'success');
-
-            } catch (error) {
-                console.error('Error processing PDF:', error);
-
-                // User-friendly error messages
-                let errorMessage = 'Failed to load PDF file.';
-
-                if (error.message.includes('Invalid PDF') || error.message.includes('PDF header')) {
-                    errorMessage = 'This file doesn\'t appear to be a valid PDF.\n\nThe file may be corrupted or in an unsupported format.';
-                } else if (error.message.includes('password') || error.message.includes('encrypted')) {
-                    errorMessage = 'This PDF is password-protected.\n\nPlease remove the password protection and try again.';
-                } else if (error.message.includes('getDocument')) {
-                    errorMessage = 'Unable to load this PDF.\n\nThe file may be corrupted or use an unsupported PDF version.';
-                } else {
-                    errorMessage = 'Error loading PDF: ' + error.message;
-                }
-
-                updateStatus('Failed to load PDF', 'error');
-                alert(errorMessage);
-            }
-        }
-
-        // ============================================
-        // PDF PARSING FUNCTIONS
-        // ============================================
-
-        /**
-         * Parse PDF file and extract text from all pages
-         * Validates PDF header, extracts text content, and updates app state
-         * @param {File} file - The PDF file to parse
-         * @returns {Promise<void>}
-         * @throws {Error} If PDF is invalid, encrypted, or text extraction fails
-         */
-        async function parsePDF(file) {
-            try {
-                // Cleanup old PDF document to free memory
-                if (pdfDocument) {
-                    try {
-                        pdfDocument.destroy();
-                    } catch (e) {
-                        console.warn('Error destroying old PDF document:', e);
-                    }
-                    pdfDocument = null;
-                }
-
-                // Read file as ArrayBuffer
-                const arrayBuffer = await file.arrayBuffer();
-
-                // Validate that it's actually a PDF
-                const header = new Uint8Array(arrayBuffer.slice(0, 5));
-                const headerString = String.fromCharCode.apply(null, header);
-                if (!headerString.includes('%PDF')) {
-                    throw new Error('Invalid PDF file - missing PDF header');
-                }
-
-                // Load PDF document with error handling
-                const loadingTask = pdfjsLib.getDocument({
-                    data: arrayBuffer,
-                    verbosity: 0 // Reduce console noise
-                });
-
-                pdfDocument = await loadingTask.promise;
-
-                // Update state
-                appState.fileName = file.name;
-                appState.pageCount = pdfDocument.numPages;
-
-                // Extract text from all pages
-                let fullText = '';
-                let hasText = false;
-
-                for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-                    const page = await pdfDocument.getPage(pageNum);
-                    const textContent = await page.getTextContent();
-
-                    // Combine text items with spaces, handling special characters
-                    const pageText = textContent.items
-                        .map(item => {
-                            // Handle potential encoding issues
-                            try {
-                                return item.str || '';
-                            } catch (e) {
-                                return '';
-                            }
-                        })
-                        .join(' ');
-
-                    if (pageText.trim().length > 0) {
-                        hasText = true;
-                    }
-
-                    fullText += pageText + '\n\n';
-                }
-
-                // Store extracted text
-                appState.pdfText = fullText.trim();
-
-                // Warn if no text was found
-                if (!hasText || appState.pdfText.length === 0) {
-                    const proceed = confirm(
-                        'Warning: No text found in this PDF.\n\n' +
-                        'The PDF may contain only images or scanned pages.\n\n' +
-                        'Continue anyway? (You won\'t be able to search or replace anything.)'
-                    );
-
-                    if (!proceed) {
-                        appState.pdfText = '';
-                        appState.fileName = '';
-                        appState.pageCount = 0;
-                        throw new Error('User cancelled - PDF contains no text');
-                    }
-                }
-
-                // Update UI with file info and preview
-                updateFileInfo();
-                updateTextPreview();
-
-            } catch (error) {
-                // Clean up on error
-                pdfDocument = null;
-
-                if (error.message.includes('User cancelled')) {
-                    throw error;
-                }
-
-                throw new Error('Failed to parse PDF: ' + error.message);
-            }
-        }
-
-        // ============================================
-        // UI UPDATE FUNCTIONS
-        // ============================================
-        function updateFileInfo() {
-            const fileInfoSection = document.getElementById('fileInfoSection');
-            const fileName = document.getElementById('fileName');
-            const pageCount = document.getElementById('pageCount');
-            const charCount = document.getElementById('charCount');
-
-            // Update values
-            fileName.textContent = appState.fileName;
-            pageCount.textContent = appState.pageCount;
-            charCount.textContent = appState.pdfText.length.toLocaleString();
-
-            // Show file info section
-            fileInfoSection.classList.add('visible');
-        }
-
-        function updateTextPreview() {
-            const textPreviewSection = document.getElementById('textPreviewSection');
-            const textPreviewContent = document.getElementById('textPreviewContent');
-
-            // Show first 500 characters
-            const previewText = appState.pdfText.substring(0, 500);
-            const hasMore = appState.pdfText.length > 500;
-
-            textPreviewContent.textContent = previewText + (hasMore ? '...' : '');
-
-            // Show text preview section
-            textPreviewSection.classList.add('visible');
-
-            // Analyze for running total patterns (for debugging/analysis)
-            const patterns = findRunningTotalPatterns(appState.pdfText);
-            if (patterns.length > 0) {
-                console.log('Found ' + patterns.length + ' running total patterns in PDF:');
-                patterns.slice(0, 10).forEach((pattern, index) => {
-                    console.log('  ' + (index + 1) + '. ' + pattern.pattern + ' = $' + pattern.value.toFixed(2) + ' at position ' + pattern.position);
-                });
-                if (patterns.length > 10) {
-                    console.log('  ... and ' + (patterns.length - 10) + ' more');
-                }
-            }
-        }
-
-        function togglePreview() {
-            const previewContent = document.getElementById('textPreviewContent');
-            const toggleBtn = document.getElementById('previewToggle');
-
-            if (previewContent.classList.contains('expanded')) {
-                // Collapse: show first 500 characters
-                previewContent.classList.remove('expanded');
-                const previewText = appState.pdfText.substring(0, 500);
-                const hasMore = appState.pdfText.length > 500;
-                previewContent.textContent = previewText + (hasMore ? '...' : '');
-                toggleBtn.textContent = 'Expand';
-            } else {
-                // Expand: show full text
-                previewContent.classList.add('expanded');
-                previewContent.textContent = appState.pdfText;
-                toggleBtn.textContent = 'Collapse';
-            }
-        }
-
-        function updateStatus(message, type) {
-            const statusText = document.getElementById('statusText');
-            const statusIndicator = document.getElementById('statusIndicator');
-
-            statusText.textContent = message;
-
-            // Remove all status classes
-            statusIndicator.classList.remove('valid', 'invalid');
-
-            // Add appropriate class
-            if (type === 'success') {
-                statusIndicator.classList.add('valid');
-            } else if (type === 'error') {
-                statusIndicator.classList.add('invalid');
-            }
-        }
-
-        // ============================================
-        // SEARCH HANDLER
-        // ============================================
-
-        /**
-         * Handle search button click
-         * Validates search term, performs search in PDF text, and updates UI with results
-         * @returns {void}
-         */
         function handleSearch() {
-            const searchTerm = document.getElementById('searchTerm').value.trim();
-
-            // Validation: empty search term
-            if (!searchTerm) {
-                alert('Please enter a search term.\n\nThe search field cannot be empty.');
-                return;
-            }
-
-            // Validation: search term too short
-            if (searchTerm.length < 2) {
-                alert('Search term is too short.\n\nPlease enter at least 2 characters.');
-                return;
-            }
-
-            // Validation: PDF loaded
-            if (!appState.pdfText) {
-                alert('Please upload a PDF first.\n\nNo document is currently loaded.');
-                return;
-            }
-
-            // Validation: PDF has text
-            if (appState.pdfText.length === 0) {
-                alert('The current PDF contains no text.\n\nCannot perform search on an empty document.');
-                return;
-            }
-
-            try {
-                // Clear previous replacements if starting a new search
-                if (appState.occurrences.length > 0) {
-                    const proceed = confirm('Starting a new search will clear all current replacements. Continue?');
-                    if (!proceed) {
-                        return;
-                    }
-                    appState.replacements.clear();
-                }
-
-                // Update status
-                updateStatus('Searching for "' + searchTerm + '"...', 'loading');
-
-                // Perform search (case-insensitive by default)
-                const results = searchInText(searchTerm, appState.pdfText);
-
-                // Store results in state
-                appState.occurrences = results;
-
-                // Update UI with results
-                updateItemsList(results, searchTerm);
-
-                // Update status
-                const count = results.length;
-                if (count === 0) {
-                    updateStatus('No occurrences found for "' + searchTerm + '"', 'error');
-                    alert('No matches found.\n\nThe search term "' + searchTerm + '" was not found in the PDF.');
-                } else {
-                    updateStatus(
-                        'Found ' + count + ' occurrence' + (count !== 1 ? 's' : '') + ' of "' + searchTerm + '"',
-                        'success'
-                    );
-                }
-
-            } catch (error) {
-                console.error('Search error:', error);
-                updateStatus('Error during search', 'error');
-                alert('Error during search:\n\n' + error.message);
-            }
+            console.log('Search triggered (not implemented yet)');
+            // To be implemented in next prompt
         }
 
-        function handleClear() {
-            // Clear state
-            appState.occurrences = [];
-            appState.replacements.clear();
-
-            // Clear search input
-            document.getElementById('searchTerm').value = '';
-
-            // Clear results display
-            const itemsList = document.getElementById('itemsList');
-            itemsList.innerHTML = `
-                <div class="placeholder-text">
-                    <p><strong>No items found yet.</strong></p>
-                    <p>Upload a PDF and search for items to see them listed here.</p>
-                    <br>
-                    <p>Each found item will display:</p>
-                    <ul style="text-align: left; display: inline-block; margin-top: 12px;">
-                        <li>Item name/description</li>
-                        <li>Current value/amount</li>
-                        <li>Location in document (page, position)</li>
-                        <li>Surrounding context</li>
-                    </ul>
-                </div>
-            `;
-
-            // Clear mapping table
-            const mappingTable = document.getElementById('mappingTable');
-            mappingTable.innerHTML = `
-                <div class="placeholder-text">
-                    <p><strong>Replacement mappings will appear here.</strong></p>
-                    <p>For each found item, you can specify:</p>
-                    <br>
-                    <ul style="text-align: left; display: inline-block; margin-top: 12px;">
-                        <li><strong>New Name:</strong> Replacement text for the item</li>
-                        <li><strong>New Value:</strong> Replacement amount/number</li>
-                    </ul>
-                    <br><br>
-                    <p>The table will show:</p>
-                    <p style="color: #ef4444; margin-top: 8px;">❌ Original → ✅ Replacement</p>
-                </div>
-            `;
-
-            // Reset totals
-            document.getElementById('originalTotal').textContent = '$0.00';
-            document.getElementById('newTotal').textContent = '$0.00';
-
-            // Hide quick actions
-            document.getElementById('quickActions').style.display = 'none';
-
-            // Reset status
-            updateStatus('Ready to process your PDF', 'loading');
+        // Additional placeholder functions for future implementation
+        function renderPDFPage() {
+            // To be implemented
         }
 
-        // ============================================
-        // DEMO MODE
-        // ============================================
-
-        /**
-         * Load sample data for demo mode
-         * Creates 25 items named 'abc' with $40 each
-         * Allows users to try the app without uploading a PDF
-         */
-        function loadSampleData() {
-            // Confirm if there's existing work
-            if (appState.pdfText && appState.occurrences.length > 0) {
-                const proceed = confirm('Loading demo data will clear all current work. Continue?');
-                if (!proceed) return;
-            }
-
-            // Generate sample PDF text with 25 occurrences of 'abc'
-            let sampleText = 'SAMPLE INVOICE - DEMO MODE\n\n';
-            sampleText += 'This is a demonstration of the PDF Parser application.\n';
-            sampleText += 'Below are 25 line items, each named "abc" with a value of $40.00.\n';
-            sampleText += 'The running total should reach $1000.00 at the end.\n\n';
-            sampleText += '='.repeat(80) + '\n\n';
-
-            let runningTotal = 0;
-            for (let i = 1; i <= 25; i++) {
-                runningTotal += 40;
-                sampleText += `Line Item ${i}:\n`;
-                sampleText += `  Description: abc (Sample Product Item)\n`;
-                sampleText += `  Unit Price: $40.00\n`;
-                sampleText += `  Quantity: 1\n`;
-                sampleText += `  Line Total: $40.00\n`;
-                sampleText += `  Running Total: $${runningTotal.toFixed(2)}\n`;
-                sampleText += '\n';
-            }
-
-            sampleText += '='.repeat(80) + '\n';
-            sampleText += `GRAND TOTAL: $${runningTotal.toFixed(2)}\n\n`;
-            sampleText += 'End of Sample Invoice\n';
-
-            // Set app state
-            appState.pdfText = sampleText;
-            appState.fileName = 'sample_demo.pdf';
-            appState.pageCount = 1;
-            appState.occurrences = [];
-            appState.replacements.clear();
-
-            // Update file info
-            updateFileInfo();
-            updateTextPreview();
-
-            // Auto-search for 'abc'
-            document.getElementById('searchTerm').value = 'abc';
-
-            // Perform search
-            updateStatus('Searching for "abc" in demo data...', 'loading');
-            const results = searchInText('abc', appState.pdfText);
-            appState.occurrences = results;
-            updateItemsList(results, 'abc');
-
-            const count = results.length;
-            updateStatus(
-                `Demo mode loaded! Found ${count} occurrences of "abc" (each $40.00, total $${(count * 40).toFixed(2)})`,
-                'success'
-            );
-
-            // Show help message
-            setTimeout(() => {
-                alert(
-                    '🎯 Demo Mode Activated!\n\n' +
-                    `Found ${count} items named "abc" at $40.00 each.\n` +
-                    `Total: $${(count * 40).toFixed(2)}\n\n` +
-                    'Try this:\n' +
-                    '1. Edit the replacement names and values in the Replacement Mapping panel\n' +
-                    '2. Watch the running totals recalculate automatically\n' +
-                    '3. Click "Preview Changes" to see before/after comparison\n' +
-                    '4. Click "Download Modified Text" to save the results\n\n' +
-                    'No PDF upload required in demo mode!'
-                );
-            }, 100);
+        function searchInPDF() {
+            // To be implemented
         }
 
-        // ============================================
-        // SEARCH FUNCTIONS
-        // ============================================
-
-        /**
-         * Search for all occurrences of a term in text
-         * Extracts context, nearby numeric values, and calculates running totals
-         * @param {string} searchTerm - The term to search for
-         * @param {string} text - The text to search in
-         * @returns {Array<Object>} Array of occurrence objects with id, match, context, position, nearbyValue, runningTotalAtThisPoint
-         */
-        function searchInText(searchTerm, text) {
-            const occurrences = [];
-            const searchLower = searchTerm.toLowerCase();
-            let position = 0;
-            let id = 0;
-
-            // Find all occurrences
-            while (position < text.length) {
-                const index = text.toLowerCase().indexOf(searchLower, position);
-
-                if (index === -1) {
-                    break;
-                }
-
-                // Extract context (100 chars before and after)
-                const contextStart = Math.max(0, index - 100);
-                const contextEnd = Math.min(text.length, index + searchTerm.length + 100);
-                const fullContext = text.substring(contextStart, contextEnd);
-
-                // Add ellipsis if truncated
-                let context = '';
-                if (contextStart > 0) context += '...';
-                context += fullContext;
-                if (contextEnd < text.length) context += '...';
-
-                // Extract nearby numeric value (next 10 chars after match)
-                const afterMatch = text.substring(index + searchTerm.length, index + searchTerm.length + 10);
-                const nearbyValue = extractNumericValue(afterMatch);
-
-                // Calculate running total (sum all values found before this occurrence)
-                const runningTotal = calculateRunningTotal(occurrences, nearbyValue);
-
-                occurrences.push({
-                    id: id++,
-                    match: text.substring(index, index + searchTerm.length),
-                    context: context,
-                    position: index,
-                    nearbyValue: nearbyValue,
-                    runningTotalAtThisPoint: runningTotal
-                });
-
-                position = index + 1;
-            }
-
-            return occurrences;
+        function replaceInPDF() {
+            // To be implemented
         }
 
-        function extractNumericValue(text) {
-            // Look for numbers with optional decimal point
-            // Matches: 40, 40.00, .50, etc.
-            const match = text.match(/[\d,.]+/);
-
-            if (match) {
-                // Remove commas and parse as float
-                const numStr = match[0].replace(/,/g, '');
-                const num = parseFloat(numStr);
-                return isNaN(num) ? 0 : num;
-            }
-
-            return 0;
-        }
-
-        function calculateRunningTotal(previousOccurrences, currentValue) {
-            // Sum all previous values
-            let total = 0;
-            for (const occurrence of previousOccurrences) {
-                total += occurrence.nearbyValue;
-            }
-
-            // Add current value
-            total += currentValue;
-
-            return total;
-        }
-
-        // ============================================
-        // UI UPDATE FUNCTIONS
-        // ============================================
-        function updateItemsList(items, searchTerm) {
-            const itemsList = document.getElementById('itemsList');
-
-            if (!items || items.length === 0) {
-                itemsList.innerHTML = `
-                    <div class="placeholder-text">
-                        <p><strong>No matches found.</strong></p>
-                        <p>Try a different search term or upload another PDF.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Build results HTML
-            let html = `
-                <div style="margin-bottom: 16px; padding: 12px; background: #e0e7ff; border-radius: 8px;">
-                    <strong style="color: #667eea;">Found ${items.length} occurrence${items.length !== 1 ? 's' : ''} of "${searchTerm}"</strong>
-                </div>
-            `;
-
-            items.forEach((item, index) => {
-                const occurrenceNum = index + 1;
-                const value = item.nearbyValue.toFixed(2);
-                const runningTotal = item.runningTotalAtThisPoint.toFixed(2);
-
-                html += `
-                    <div class="item-card">
-                        <div class="item-header">
-                            <span class="item-name">#${occurrenceNum}: "${item.match}"</span>
-                            <span class="item-value">$${value}</span>
-                        </div>
-                        <div class="item-details">
-                            <strong>Context:</strong> ${escapeHtml(item.context)}
-                        </div>
-                        <div class="item-details" style="margin-top: 8px;">
-                            <strong>Position:</strong> ${item.position.toLocaleString()} |
-                            <strong>Nearby Value:</strong> $${value} |
-                            <strong>Running Total:</strong> $${runningTotal}
-                        </div>
-                    </div>
-                `;
-            });
-
-            itemsList.innerHTML = html;
-
-            // Update totals display
-            const totalSum = items.length > 0
-                ? items[items.length - 1].runningTotalAtThisPoint
-                : 0;
-            document.getElementById('originalTotal').textContent = '$' + totalSum.toFixed(2);
-
-            // Show quick actions
-            document.getElementById('quickActions').style.display = 'flex';
-
-            // Also update the mapping table
-            updateMappingTable(items);
-        }
-
-        function updateMappingTable(items) {
-            const mappingTable = document.getElementById('mappingTable');
-
-            if (!items || items.length === 0) {
-                mappingTable.innerHTML = `
-                    <div class="placeholder-text">
-                        <p><strong>Replacement mappings will appear here.</strong></p>
-                        <p>For each found item, you can specify:</p>
-                        <br>
-                        <ul style="text-align: left; display: inline-block; margin-top: 12px;">
-                            <li><strong>New Name:</strong> Replacement text for the item</li>
-                            <li><strong>New Value:</strong> Replacement amount/number</li>
-                        </ul>
-                        <br><br>
-                        <p>The table will show:</p>
-                        <p style="color: #ef4444; margin-top: 8px;">❌ Original → ✅ Replacement</p>
-                    </div>
-                `;
-                return;
-            }
-
-            let html = '';
-
-            // Create mapping card for each occurrence
-            items.forEach((item, index) => {
-                const occurrenceNum = index + 1;
-                const originalValue = item.nearbyValue.toFixed(2);
-                const originalRunningTotal = item.runningTotalAtThisPoint.toFixed(2);
-
-                // Get existing replacement if any
-                const existing = appState.replacements.get(item.id);
-                const newName = existing ? existing.newName : '';
-                const newValue = existing ? existing.newValue : '';
-                const newRunningTotal = existing ? existing.newRunningTotal : originalRunningTotal;
-
-                html += `
-                    <div class="mapping-card" data-item-id="${item.id}">
-                        <div class="mapping-card-header">
-                            #${occurrenceNum}: Occurrence Mapping
-                        </div>
-
-                        <div class="mapping-grid">
-                            <div class="mapping-field">
-                                <span class="mapping-label">Original Name</span>
-                                <div class="mapping-value original">"${escapeHtml(item.match)}"</div>
-                            </div>
-                            <div class="mapping-field">
-                                <span class="mapping-label">New Name</span>
-                                <input
-                                    type="text"
-                                    class="mapping-input new-name-input"
-                                    data-item-id="${item.id}"
-                                    placeholder="Enter new name..."
-                                    value="${escapeHtml(newName)}"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="mapping-grid">
-                            <div class="mapping-field">
-                                <span class="mapping-label">Original Value</span>
-                                <div class="mapping-value original">$${originalValue}</div>
-                            </div>
-                            <div class="mapping-field">
-                                <span class="mapping-label">New Value</span>
-                                <input
-                                    type="number"
-                                    class="mapping-input new-value-input"
-                                    data-item-id="${item.id}"
-                                    placeholder="0.00"
-                                    step="0.01"
-                                    value="${newValue}"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="mapping-totals">
-                            <div class="mapping-total-item">
-                                <span class="mapping-total-label">Original Running Total:</span>
-                                <span class="mapping-total-value" style="color: #ef4444;">$${originalRunningTotal}</span>
-                            </div>
-                            <div class="mapping-total-item">
-                                <span class="mapping-total-label">New Running Total:</span>
-                                <span class="mapping-total-value new-running-total" data-item-id="${item.id}" style="color: #10b981;">$${newRunningTotal}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            // Add Fill Remaining button
-            html += `
-                <button class="fill-remaining-btn" id="fillRemainingBtn">
-                    📊 Fill Remaining Items
-                </button>
-                <div class="auto-fill-note" id="autoFillNote"></div>
-            `;
-
-            mappingTable.innerHTML = html;
-
-            // Add event listeners to all inputs
-            attachMappingEventListeners();
-        }
-
-        function attachMappingEventListeners() {
-            // Attach listeners to all name inputs
-            document.querySelectorAll('.new-name-input').forEach(input => {
-                input.addEventListener('input', handleMappingChange);
-            });
-
-            // Attach listeners to all value inputs
-            document.querySelectorAll('.new-value-input').forEach(input => {
-                input.addEventListener('input', handleMappingChange);
-            });
-
-            // Attach listener to Fill Remaining button
-            const fillBtn = document.getElementById('fillRemainingBtn');
-            if (fillBtn) {
-                fillBtn.addEventListener('click', handleFillRemaining);
-            }
-        }
-
-        /**
-         * Handle changes to replacement mapping inputs
-         * Validates input values, updates state, recalculates totals
-         * @param {Event} event - Input change event
-         * @returns {void}
-         */
-        function handleMappingChange(event) {
-            const itemId = parseInt(event.target.getAttribute('data-item-id'));
-            const isNameInput = event.target.classList.contains('new-name-input');
-
-            // Get current values for this item
-            const nameInput = document.querySelector(`.new-name-input[data-item-id="${itemId}"]`);
-            const valueInput = document.querySelector(`.new-value-input[data-item-id="${itemId}"]`);
-
-            const newName = nameInput.value.trim();
-            const rawValue = valueInput.value.trim();
-
-            // Reset validation classes
-            valueInput.classList.remove('warning', 'error');
-
-            // Parse and validate the value
-            let newValue = 0;
-            let hasWarning = false;
-
-            if (rawValue === '') {
-                // Empty value - use 0 but show warning
-                newValue = 0;
-                valueInput.classList.add('warning');
-                hasWarning = true;
-            } else {
-                newValue = parseFloat(rawValue);
-
-                // Validate numeric
-                if (isNaN(newValue)) {
-                    valueInput.classList.add('error');
-                    valueInput.value = '';
-                    alert('Invalid value.\n\nPlease enter a valid number.');
-                    return;
-                }
-
-                // Warn about negative values
-                if (newValue < 0) {
-                    const proceed = confirm(
-                        'Negative value detected: $' + newValue.toFixed(2) + '\n\n' +
-                        'Is this intentional? Negative values may cause unexpected totals.'
-                    );
-                    if (!proceed) {
-                        valueInput.value = '';
-                        return;
-                    }
-                    valueInput.classList.add('warning');
-                }
-
-                // Warn about very large values
-                if (newValue > 1000000) {
-                    const proceed = confirm(
-                        'Very large value detected: $' + newValue.toLocaleString() + '\n\n' +
-                        'Is this correct?'
-                    );
-                    if (!proceed) {
-                        valueInput.value = '';
-                        return;
-                    }
-                }
-
-                // Warn about very small values
-                if (newValue > 0 && newValue < 0.01) {
-                    valueInput.classList.add('warning');
-                }
-            }
-
-            // Update or create replacement in state
-            appState.replacements.set(itemId, {
-                newName: newName,
-                newValue: newValue,
-                newRunningTotal: 0 // Will be calculated
-            });
-
-            // Recalculate all running totals
-            recalculateRunningTotals();
-
-            // Update validation
-            updateValidation();
-        }
-
-        function recalculateRunningTotals() {
-            // Use the core calculation engine
-            const updatedOccurrences = calculateNewRunningTotals(appState.occurrences, appState.replacements);
-
-            // Update UI for each running total
-            updatedOccurrences.forEach((occurrence) => {
-                const runningTotalElement = document.querySelector(`.new-running-total[data-item-id="${occurrence.id}"]`);
-                if (runningTotalElement) {
-                    runningTotalElement.textContent = '$' + occurrence.newRunningTotal.toFixed(2);
-                }
-            });
-
-            // Get final total
-            const finalTotal = updatedOccurrences.length > 0
-                ? updatedOccurrences[updatedOccurrences.length - 1].newRunningTotal
-                : 0;
-
-            // Update the bottom total display
-            document.getElementById('newTotal').textContent = '$' + finalTotal.toFixed(2);
-
-            return finalTotal;
-        }
-
-        function updateValidation() {
-            // Use the core validation engine
-            const validation = validateTotals(appState.occurrences, appState.replacements);
-
-            // Update UI with validation results
-            const statusText = document.getElementById('statusText');
-            const statusIndicator = document.getElementById('statusIndicator');
-
-            statusText.textContent = validation.message;
-
-            // Update indicator classes
-            statusIndicator.classList.remove('valid', 'invalid');
-            if (validation.isValid) {
-                statusIndicator.classList.add('valid');
-                document.getElementById('downloadBtn').disabled = false;
-                document.getElementById('previewBtn').disabled = false;
-            } else {
-                statusIndicator.classList.add('invalid');
-                document.getElementById('downloadBtn').disabled = true;
-                document.getElementById('previewBtn').disabled = true;
-            }
-
-            return validation;
-        }
-
-        function handleFillRemaining() {
-            // Calculate original total
-            const originalTotal = appState.occurrences.length > 0
-                ? appState.occurrences[appState.occurrences.length - 1].runningTotalAtThisPoint
-                : 0;
-
-            // Calculate current sum of filled values
-            let currentSum = 0;
-            let unfilledCount = 0;
-
-            appState.occurrences.forEach((occurrence) => {
-                const replacement = appState.replacements.get(occurrence.id);
-                if (replacement && replacement.newValue > 0) {
-                    currentSum += replacement.newValue;
-                } else {
-                    unfilledCount++;
-                }
-            });
-
-            if (unfilledCount === 0) {
-                alert('All values are already filled!');
-                return;
-            }
-
-            // Calculate amount to distribute
-            const remaining = originalTotal - currentSum;
-            const perItem = remaining / unfilledCount;
-
-            if (perItem <= 0) {
-                alert('No remaining amount to distribute. Total already met or exceeded.');
-                return;
-            }
-
-            // Fill unfilled items
-            appState.occurrences.forEach((occurrence) => {
-                const replacement = appState.replacements.get(occurrence.id);
-                if (!replacement || replacement.newValue === 0) {
-                    // Get the input field and fill it
-                    const valueInput = document.querySelector(`.new-value-input[data-item-id="${occurrence.id}"]`);
-                    if (valueInput) {
-                        valueInput.value = perItem.toFixed(2);
-
-                        // Update state
-                        appState.replacements.set(occurrence.id, {
-                            newName: occurrence.match,
-                            newValue: perItem,
-                            newRunningTotal: 0
-                        });
-                    }
-                }
-            });
-
-            // Recalculate and update
-            recalculateRunningTotals();
-            updateValidation();
-
-            // Show auto-fill note
-            const note = document.getElementById('autoFillNote');
-            if (note) {
-                note.textContent = '✓ Auto-filled ' + unfilledCount + ' remaining item' + (unfilledCount > 1 ? 's' : '') + ' with $' + perItem.toFixed(2) + ' per item';
-                note.classList.add('visible');
-
-                // Hide note after 5 seconds
-                setTimeout(() => {
-                    note.classList.remove('visible');
-                }, 5000);
-            }
-        }
-
-        function updateValidationStatus(isValid, originalTotal, newTotal) {
-            // This function is called by updateValidation() above
-            // Keeping for compatibility
-        }
-
-        // Helper function to escape HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // ============================================
-        // REPLACEMENT & CALCULATION ENGINE
-        // ============================================
-
-        /**
-         * Calculate new running totals based on replacement values
-         * @param {Array} occurrences - Array of occurrence objects
-         * @param {Map} replacementMap - Map of replacements (id -> {newName, newValue, newRunningTotal})
-         * @returns {Array} Updated occurrences with new running totals
-         */
-        function calculateNewRunningTotals(occurrences, replacementMap) {
-            let runningTotal = 0;
-            const updatedOccurrences = [];
-
-            occurrences.forEach((occurrence) => {
-                const replacement = replacementMap.get(occurrence.id);
-
-                // Use new value if replacement exists and has a value, otherwise use original
-                const valueToAdd = (replacement && replacement.newValue > 0)
-                    ? replacement.newValue
-                    : occurrence.nearbyValue;
-
-                runningTotal += valueToAdd;
-
-                // Create updated occurrence with new running total
-                const updatedOccurrence = {
-                    ...occurrence,
-                    newValue: replacement ? replacement.newValue : occurrence.nearbyValue,
-                    newName: replacement ? replacement.newName : occurrence.match,
-                    newRunningTotal: runningTotal
-                };
-
-                updatedOccurrences.push(updatedOccurrence);
-
-                // Update the replacement map with the new running total
-                if (replacement) {
-                    replacement.newRunningTotal = runningTotal;
-                }
-            });
-
-            return updatedOccurrences;
-        }
-
-        /**
-         * Validate that replacement totals match original totals
-         * @param {Array} occurrences - Array of occurrence objects
-         * @param {Map} replacementMap - Map of replacements
-         * @returns {Object} Validation result {isValid, difference, message, originalTotal, newTotal}
-         */
-        function validateTotals(occurrences, replacementMap) {
-            // Calculate original total
-            const originalTotal = occurrences.length > 0
-                ? occurrences[occurrences.length - 1].runningTotalAtThisPoint
-                : 0;
-
-            // Calculate new total from replacements
-            let newTotal = 0;
-            occurrences.forEach((occurrence) => {
-                const replacement = replacementMap.get(occurrence.id);
-                if (replacement && replacement.newValue > 0) {
-                    newTotal += replacement.newValue;
-                } else {
-                    newTotal += occurrence.nearbyValue;
-                }
-            });
-
-            // Calculate difference
-            const difference = originalTotal - newTotal;
-            const isMatch = Math.abs(difference) < 0.01; // Allow for floating point errors
-
-            // Generate message
-            let message;
-            if (isMatch) {
-                message = '✓ Totals match! Replacements sum to $' + originalTotal.toFixed(2);
-            } else if (difference > 0) {
-                message = '✗ Totals don\'t match. Need $' + difference.toFixed(2) + ' more to reach $' + originalTotal.toFixed(2);
-            } else {
-                message = '✗ Totals don\'t match. $' + Math.abs(difference).toFixed(2) + ' over the target of $' + originalTotal.toFixed(2);
-            }
-
-            return {
-                isValid: isMatch,
-                difference: difference,
-                message: message,
-                originalTotal: originalTotal,
-                newTotal: newTotal
-            };
-        }
-
-        /**
-         * Find running total patterns in text
-         * @param {String} text - The text to search
-         * @returns {Array} Array of found patterns [{pattern, value, position, context}]
-         */
-        function findRunningTotalPatterns(text) {
-            const patterns = [];
-
-            // Define regex patterns to search for running totals
-            const searchPatterns = [
-                // "Total: $XXX" or "Total $XXX"
-                /(?:total:?\s*\$?\s*)([\d,]+\.?\d*)/gi,
-                // "Running Total: $XXX"
-                /(?:running\s+total:?\s*\$?\s*)([\d,]+\.?\d*)/gi,
-                // "Cumulative: $XXX"
-                /(?:cumulative:?\s*\$?\s*)([\d,]+\.?\d*)/gi,
-                // "$XXX total"
-                /\$\s*([\d,]+\.?\d*)\s+total/gi,
-                // "Balance: $XXX"
-                /(?:balance:?\s*\$?\s*)([\d,]+\.?\d*)/gi,
-                // "Sum: $XXX"
-                /(?:sum:?\s*\$?\s*)([\d,]+\.?\d*)/gi,
-                // Standalone $XXX.XX pattern (greedy, finds all dollar amounts)
-                /\$\s*([\d,]+\.?\d*)/g
-            ];
-
-            // Search for each pattern
-            searchPatterns.forEach((regex) => {
-                let match;
-                while ((match = regex.exec(text)) !== null) {
-                    const position = match.index;
-                    const fullMatch = match[0];
-                    const numericValue = parseFloat(match[1].replace(/,/g, ''));
-
-                    // Extract context (50 chars before and after)
-                    const contextStart = Math.max(0, position - 50);
-                    const contextEnd = Math.min(text.length, position + fullMatch.length + 50);
-                    const context = text.substring(contextStart, contextEnd);
-
-                    patterns.push({
-                        pattern: fullMatch,
-                        value: numericValue,
-                        position: position,
-                        context: (contextStart > 0 ? '...' : '') + context + (contextEnd < text.length ? '...' : '')
-                    });
-                }
-            });
-
-            // Remove duplicates based on position
-            const uniquePatterns = [];
-            const seenPositions = new Set();
-
-            patterns.forEach(pattern => {
-                if (!seenPositions.has(pattern.position)) {
-                    seenPositions.add(pattern.position);
-                    uniquePatterns.push(pattern);
-                }
-            });
-
-            // Sort by position
-            uniquePatterns.sort((a, b) => a.position - b.position);
-
-            return uniquePatterns;
-        }
-
-        /**
-         * Apply all replacements to the text
-         * @param {String} text - Original text
-         * @param {Array} occurrences - Array of occurrence objects
-         * @param {Map} replacementMap - Map of replacements
-         * @returns {String} Modified text with replacements applied
-         */
-        function applyReplacements(text, occurrences, replacementMap) {
-            let modifiedText = text;
-            let offset = 0; // Track offset due to length changes
-
-            // Sort occurrences by position to process from beginning to end
-            const sortedOccurrences = [...occurrences].sort((a, b) => a.position - b.position);
-
-            sortedOccurrences.forEach((occurrence) => {
-                const replacement = replacementMap.get(occurrence.id);
-
-                if (replacement && (replacement.newName || replacement.newValue > 0)) {
-                    const adjustedPosition = occurrence.position + offset;
-
-                    // Build the original text to replace (match + value)
-                    const originalMatch = occurrence.match;
-                    const originalValue = occurrence.nearbyValue.toFixed(2);
-
-                    // Find the occurrence in the text
-                    const searchStart = adjustedPosition;
-                    const searchEnd = searchStart + originalMatch.length + 20; // Look ahead for the value
-                    const segment = modifiedText.substring(searchStart, searchEnd);
-
-                    // Build replacement string
-                    const newName = replacement.newName || originalMatch;
-                    const newValue = replacement.newValue > 0 ? replacement.newValue.toFixed(2) : originalValue;
-
-                    // Try to preserve the original format (e.g., if it had $ or specific spacing)
-                    const valuePattern = new RegExp(originalValue.replace('.', '\\.'));
-                    const newSegment = segment.replace(originalMatch, newName).replace(valuePattern, newValue);
-
-                    // Calculate offset change
-                    const lengthDiff = newSegment.length - segment.length;
-                    offset += lengthDiff;
-
-                    // Apply the replacement
-                    modifiedText = modifiedText.substring(0, searchStart) + newSegment + modifiedText.substring(searchEnd);
-                }
-            });
-
-            return modifiedText;
-        }
-
-        /**
-         * Calculate totals summary from occurrences
-         * @param {Array} occurrences - Array of occurrence objects
-         * @returns {Object} {originalTotal, count}
-         */
-        function calculateTotals(occurrences) {
-            if (!occurrences || occurrences.length === 0) {
-                return {
-                    originalTotal: 0,
-                    count: 0
-                };
-            }
-
-            const originalTotal = occurrences[occurrences.length - 1].runningTotalAtThisPoint;
-
-            return {
-                originalTotal: originalTotal,
-                count: occurrences.length
-            };
-        }
-
-        // ============================================
-        // PREVIEW FUNCTIONS
-        // ============================================
-
-        /**
-         * Handle preview button click
-         * Generates modified text and shows side-by-side comparison in modal
-         * @returns {void}
-         */
-        function handlePreviewChanges() {
-            if (!appState.pdfText) {
-                alert('No PDF text available. Please upload a PDF first.');
-                return;
-            }
-
-            if (!appState.occurrences || appState.occurrences.length === 0) {
-                alert('No search results found. Please search for items first.');
-                return;
-            }
-
-            try {
-                // Find running total patterns
-                const patterns = findRunningTotalPatterns(appState.pdfText);
-
-                // Generate modified text
-                const modifiedText = generateModifiedText(
-                    appState.pdfText,
-                    appState.occurrences,
-                    appState.replacements,
-                    patterns
-                );
-
-                // Show preview (first 1000 chars)
-                const originalPreview = appState.pdfText.substring(0, 1000);
-                const modifiedPreview = modifiedText.substring(0, 1000);
-
-                // Display in modal
-                document.getElementById('originalTextPreview').textContent = originalPreview + (appState.pdfText.length > 1000 ? '\n\n...' : '');
-                document.getElementById('modifiedTextPreview').textContent = modifiedPreview + (modifiedText.length > 1000 ? '\n\n...' : '');
-
-                // Show modal
-                document.getElementById('previewModal').classList.add('visible');
-
-            } catch (error) {
-                console.error('Preview error:', error);
-                alert('Error generating preview: ' + error.message);
-            }
-        }
-
-        function closePreviewModal() {
-            document.getElementById('previewModal').classList.remove('visible');
-        }
-
-        // ============================================
-        // DOWNLOAD FALLBACK MODAL
-        // ============================================
-
-        function showDownloadFallback(modifiedText, filename) {
-            // Store for retry
-            window._lastDownloadAttempt = { text: modifiedText, filename: filename };
-
-            // Display text in modal
-            document.getElementById('downloadFallbackText').value = modifiedText;
-
-            // Show modal
-            document.getElementById('downloadFallbackModal').classList.add('visible');
-
-            // Update status
-            updateStatus('Download blocked - text available in modal', 'error');
-        }
-
-        function closeDownloadFallbackModal() {
-            document.getElementById('downloadFallbackModal').classList.remove('visible');
-        }
-
-        async function copyDownloadTextToClipboard() {
-            const text = document.getElementById('downloadFallbackText').value;
-
-            try {
-                // Try modern clipboard API first
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(text);
-                    alert('✓ Text copied to clipboard!\n\nYou can now paste it into a text editor and save manually.');
-                    updateStatus('Text copied to clipboard', 'success');
-                } else {
-                    // Fallback to older method
-                    const textarea = document.getElementById('downloadFallbackText');
-                    textarea.select();
-                    const success = document.execCommand('copy');
-
-                    if (success) {
-                        alert('✓ Text copied to clipboard!\n\nYou can now paste it into a text editor and save manually.');
-                        updateStatus('Text copied to clipboard', 'success');
-                    } else {
-                        throw new Error('Copy command failed');
-                    }
-                }
-            } catch (error) {
-                console.error('Copy to clipboard failed:', error);
-                alert(
-                    'Failed to copy to clipboard automatically.\n\n' +
-                    'Please manually select all text in the box below and copy it (Ctrl+A, then Ctrl+C).'
-                );
-            }
-        }
-
-        function retryDownload() {
-            if (!window._lastDownloadAttempt) {
-                alert('No download to retry.');
-                return;
-            }
-
-            const { text, filename } = window._lastDownloadAttempt;
-
-            try {
-                // Try download again
-                const blob = new Blob([text], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
-
-                // Clean up
-                setTimeout(() => {
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                }, 100);
-
-                // Close modal if successful
-                closeDownloadFallbackModal();
-                updateStatus('✓ File downloaded successfully: ' + filename, 'success');
-
-            } catch (error) {
-                console.error('Retry download failed:', error);
-                alert('Download failed again.\n\nPlease use the "Copy to Clipboard" button instead.');
-            }
-        }
-
-        // ============================================
-        // DOWNLOAD FUNCTIONS
-        // ============================================
-
-        /**
-         * Create replacement instructions for all occurrences
-         * @param {Array} occurrences - Array of occurrence objects
-         * @param {Map} replacementMap - Map of replacements
-         * @returns {Array} Array of replacement instructions sorted by position (reverse)
-         */
-        function createReplacementInstructions(occurrences, replacementMap) {
-            const instructions = [];
-
-            occurrences.forEach((occurrence) => {
-                const replacement = replacementMap.get(occurrence.id);
-
-                if (replacement && (replacement.newName || replacement.newValue > 0)) {
-                    instructions.push({
-                        fromText: occurrence.match,
-                        toText: replacement.newName || occurrence.match,
-                        fromValue: occurrence.nearbyValue,
-                        toValue: replacement.newValue > 0 ? replacement.newValue : occurrence.nearbyValue,
-                        position: occurrence.position,
-                        id: occurrence.id
-                    });
-                }
-            });
-
-            // Sort by position in reverse order (highest first)
-            instructions.sort((a, b) => b.position - a.position);
-
-            return instructions;
-        }
-
-        /**
-         * Generate modified text with all replacements applied
-         * @param {String} originalText - Original text from PDF
-         * @param {Array} occurrences - Array of occurrence objects
-         * @param {Map} replacementMap - Map of replacements
-         * @param {Array} runningTotalPatterns - Array of running total patterns found
-         * @returns {String} Modified text with all replacements
-         */
-        function generateModifiedText(originalText, occurrences, replacementMap, runningTotalPatterns) {
-            let modifiedText = originalText;
-
-            // Get replacement instructions sorted by position (reverse order)
-            const instructions = createReplacementInstructions(occurrences, replacementMap);
-
-            // Calculate new running totals for updating patterns
-            const updatedOccurrences = calculateNewRunningTotals(occurrences, replacementMap);
-            const runningTotalsByPosition = new Map();
-            updatedOccurrences.forEach(occ => {
-                runningTotalsByPosition.set(occ.position, occ.newRunningTotal);
-            });
-
-            // Apply replacements from highest to lowest position
-            instructions.forEach((instruction) => {
-                const position = instruction.position;
-                const searchLength = instruction.fromText.length + 20; // Look ahead for value
-
-                // Extract the segment to replace
-                const segment = modifiedText.substring(position, position + searchLength);
-
-                // Build new segment with replacement
-                let newSegment = segment;
-
-                // Replace the text (name)
-                if (instruction.toText !== instruction.fromText) {
-                    newSegment = newSegment.replace(instruction.fromText, instruction.toText);
-                }
-
-                // Replace the value
-                const fromValueStr = instruction.fromValue.toFixed(2);
-                const toValueStr = instruction.toValue.toFixed(2);
-
-                if (fromValueStr !== toValueStr) {
-                    // Try to find and replace the value
-                    const valueRegex = new RegExp('\\$?\\s*' + fromValueStr.replace('.', '\\.'));
-                    newSegment = newSegment.replace(valueRegex, '$' + toValueStr);
-                }
-
-                // Apply the segment replacement
-                modifiedText = modifiedText.substring(0, position) + newSegment + modifiedText.substring(position + searchLength);
-            });
-
-            // Update running total patterns if found
-            if (runningTotalPatterns && runningTotalPatterns.length > 0) {
-                // Sort patterns by position in reverse order
-                const sortedPatterns = [...runningTotalPatterns].sort((a, b) => b.position - a.position);
-
-                sortedPatterns.forEach((pattern) => {
-                    // Find the closest occurrence before this pattern
-                    let closestRunningTotal = 0;
-                    for (const occ of updatedOccurrences) {
-                        if (occ.position < pattern.position) {
-                            closestRunningTotal = occ.newRunningTotal;
-                        }
-                    }
-
-                    // Replace the old running total with the new one
-                    const oldValueStr = pattern.value.toFixed(2);
-                    const newValueStr = closestRunningTotal.toFixed(2);
-
-                    if (oldValueStr !== newValueStr) {
-                        const patternRegex = new RegExp('\\$?\\s*' + oldValueStr.replace('.', '\\.'));
-                        const patternStart = pattern.position;
-                        const patternEnd = patternStart + pattern.pattern.length + 20;
-                        const patternSegment = modifiedText.substring(patternStart, patternEnd);
-                        const newPatternSegment = patternSegment.replace(patternRegex, '$' + newValueStr);
-
-                        modifiedText = modifiedText.substring(0, patternStart) + newPatternSegment + modifiedText.substring(patternEnd);
-                    }
-                });
-            }
-
-            return modifiedText;
-        }
-
-        /**
-         * Download the modified text as a file
-         * Validates state, generates modified text, and creates a downloadable file
-         * Falls back to showing text in modal if download fails
-         * @returns {void}
-         */
-        function handleDownload() {
-            if (!appState.pdfText) {
-                alert('No PDF text available. Please upload a PDF first.');
-                return;
-            }
-
-            if (!appState.occurrences || appState.occurrences.length === 0) {
-                alert('No search results found. Please search for items first.');
-                return;
-            }
-
-            // Validate that totals match
-            const validation = validateTotals(appState.occurrences, appState.replacements);
-            if (!validation.isValid) {
-                const proceed = confirm(
-                    'Warning: Totals do not match!\n\n' +
-                    validation.message + '\n\n' +
-                    'Do you want to download anyway?'
-                );
-                if (!proceed) {
-                    return;
-                }
-            }
-
-            try {
-                // Find running total patterns
-                const patterns = findRunningTotalPatterns(appState.pdfText);
-
-                // Generate modified text
-                updateStatus('Generating modified text...', 'loading');
-                const modifiedText = generateModifiedText(
-                    appState.pdfText,
-                    appState.occurrences,
-                    appState.replacements,
-                    patterns
-                );
-
-                // Warn if text is very large
-                const textSizeMB = new Blob([modifiedText]).size / 1024 / 1024;
-                if (textSizeMB > 10) {
-                    const proceed = confirm(
-                        'Warning: The modified text is very large (' + textSizeMB.toFixed(2) + ' MB).\n\n' +
-                        'Download may be slow or fail.\n\n' +
-                        'Continue?'
-                    );
-                    if (!proceed) {
-                        updateStatus('Download cancelled', 'error');
-                        return;
-                    }
-                }
-
-                // Create filename
-                const originalName = appState.fileName.replace('.pdf', '');
-                const filename = 'modified_' + originalName + '.txt';
-
-                // Try to download
-                updateStatus('Initiating download...', 'loading');
-
-                try {
-                    // Create blob and download
-                    const blob = new Blob([modifiedText], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-
-                    // Create download link
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = filename;
-                    document.body.appendChild(link);
-                    link.click();
-
-                    // Check if download likely succeeded by waiting briefly
-                    setTimeout(() => {
-                        document.body.removeChild(link);
-                        URL.revokeObjectURL(url);
-                    }, 100);
-
-                    // Update status (optimistic)
-                    updateStatus('✓ File downloaded successfully: ' + filename, 'success');
-
-                } catch (downloadError) {
-                    console.error('Download failed:', downloadError);
-
-                    // Show fallback modal with text
-                    showDownloadFallback(modifiedText, filename);
-                }
-
-            } catch (error) {
-                console.error('Error generating modified text:', error);
-
-                // User-friendly error messages
-                let errorMessage = 'Failed to generate modified text.';
-
-                if (error.message.includes('memory') || error.message.includes('Maximum')) {
-                    errorMessage = 'Out of memory error.\n\nThe PDF is too large to process in the browser.\n\nTry a smaller PDF or process fewer replacements at once.';
-                } else if (error.message.includes('stack')) {
-                    errorMessage = 'Processing error.\n\nThe text is too complex to process.\n\nTry reducing the number of replacements.';
-                } else {
-                    errorMessage = 'Error generating modified text:\n\n' + error.message;
-                }
-
-                updateStatus('Error generating download', 'error');
-                alert(errorMessage);
-            }
-        }
-
-        function generateModifiedFile(modifiedText) {
-            // Legacy function - now using handleDownload
-            console.warn('generateModifiedFile is deprecated, use handleDownload instead');
+        function downloadModifiedPDF() {
+            // To be implemented
         }
     </script>
 </body>
