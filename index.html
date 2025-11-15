@@ -1070,6 +1070,15 @@
                     <button class="btn btn-secondary" id="clearBtn">
                         🗑️ Clear Results
                     </button>
+
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                        <div style="margin-bottom: 8px; font-size: 13px; color: #64748b;">
+                            <strong>No PDF?</strong> Try demo mode:
+                        </div>
+                        <button class="btn" id="loadDemoBtn" style="width: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            🎯 Load Sample Data (Demo)
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1310,6 +1319,9 @@
             // Clear button handler
             document.getElementById('clearBtn').addEventListener('click', handleClear);
 
+            // Demo mode button handler
+            document.getElementById('loadDemoBtn').addEventListener('click', loadSampleData);
+
             // Download button handler
             document.getElementById('downloadBtn').addEventListener('click', handleDownload);
 
@@ -1344,6 +1356,11 @@
 
             // Preview toggle handler
             document.getElementById('previewToggle').addEventListener('click', togglePreview);
+
+            // Quick action button handlers
+            document.getElementById('replaceAllBtn').addEventListener('click', handleReplaceAll);
+            document.getElementById('exportMappingBtn').addEventListener('click', handleExportMapping);
+            document.getElementById('importMappingBtn').addEventListener('click', handleImportMapping);
 
             // Keyboard shortcuts
             document.addEventListener('keydown', handleKeyboardShortcuts);
@@ -1402,7 +1419,185 @@
                 // Recalculate
                 recalculateRunningTotals();
                 updateValidation();
+
+                showToast('All replacements cleared', 'info');
             }
+        }
+
+        /**
+         * Replace all items with the same values
+         * Prompts user for name and value, then applies to all occurrences
+         */
+        function handleReplaceAll() {
+            if (!appState.occurrences || appState.occurrences.length === 0) {
+                alert('No items to replace. Please search for items first.');
+                return;
+            }
+
+            const newName = prompt('Enter new name for ALL items:', '');
+            if (newName === null) return; // User cancelled
+
+            const newValueStr = prompt('Enter new value for ALL items (e.g., 50.00):', '40.00');
+            if (newValueStr === null) return; // User cancelled
+
+            const newValue = parseFloat(newValueStr);
+            if (isNaN(newValue)) {
+                alert('Invalid value. Please enter a valid number.');
+                return;
+            }
+
+            // Apply to all occurrences
+            appState.occurrences.forEach((occurrence) => {
+                appState.replacements.set(occurrence.id, {
+                    newName: newName.trim(),
+                    newValue: newValue,
+                    newRunningTotal: 0
+                });
+            });
+
+            // Update UI
+            updateMappingTable(appState.occurrences);
+            recalculateRunningTotals();
+            updateValidation();
+
+            showToast(`Replaced all ${appState.occurrences.length} items with "${newName}" at $${newValue.toFixed(2)}`, 'success');
+        }
+
+        /**
+         * Export current replacement mapping as JSON file
+         */
+        function handleExportMapping() {
+            if (appState.replacements.size === 0) {
+                alert('No replacements to export. Please add some replacements first.');
+                return;
+            }
+
+            // Convert Map to plain object
+            const exportData = {
+                fileName: appState.fileName,
+                searchTerm: document.getElementById('searchTerm').value,
+                mappings: []
+            };
+
+            appState.replacements.forEach((replacement, id) => {
+                const occurrence = appState.occurrences.find(occ => occ.id === id);
+                if (occurrence) {
+                    exportData.mappings.push({
+                        originalMatch: occurrence.match,
+                        originalValue: occurrence.nearbyValue,
+                        newName: replacement.newName,
+                        newValue: replacement.newValue
+                    });
+                }
+            });
+
+            // Create JSON file
+            const jsonStr = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            // Download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'pdf-mapping-' + Date.now() + '.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showToast('Mapping exported successfully', 'success');
+        }
+
+        /**
+         * Import replacement mapping from JSON file
+         */
+        function handleImportMapping() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                try {
+                    const text = await file.text();
+                    const importData = JSON.parse(text);
+
+                    if (!importData.mappings || !Array.isArray(importData.mappings)) {
+                        throw new Error('Invalid mapping file format');
+                    }
+
+                    // Clear existing replacements
+                    appState.replacements.clear();
+
+                    // Apply imported mappings
+                    let importedCount = 0;
+                    importData.mappings.forEach((mapping) => {
+                        // Find matching occurrence by original match text
+                        const occurrence = appState.occurrences.find(
+                            occ => occ.match === mapping.originalMatch
+                        );
+
+                        if (occurrence) {
+                            appState.replacements.set(occurrence.id, {
+                                newName: mapping.newName || '',
+                                newValue: mapping.newValue || 0,
+                                newRunningTotal: 0
+                            });
+                            importedCount++;
+                        }
+                    });
+
+                    // Update UI
+                    updateMappingTable(appState.occurrences);
+                    recalculateRunningTotals();
+                    updateValidation();
+
+                    showToast(`Imported ${importedCount} mappings successfully`, 'success');
+
+                } catch (error) {
+                    console.error('Import error:', error);
+                    alert('Error importing mapping:\n\n' + error.message);
+                    showToast('Failed to import mapping', 'error');
+                }
+            };
+
+            input.click();
+        }
+
+        /**
+         * Show toast notification
+         * @param {string} message - The message to display
+         * @param {string} type - Type of toast: 'success', 'error', 'info', 'warning'
+         */
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+
+            // Icon based on type
+            let icon = 'ℹ️';
+            if (type === 'success') icon = '✓';
+            if (type === 'error') icon = '✗';
+            if (type === 'warning') icon = '⚠';
+
+            toast.innerHTML = `
+                <span class="toast-icon">${icon}</span>
+                <span class="toast-message">${message}</span>
+            `;
+
+            container.appendChild(toast);
+
+            // Show toast
+            setTimeout(() => toast.classList.add('show'), 10);
+
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => container.removeChild(toast), 300);
+            }, 3000);
         }
 
         /**
@@ -1430,6 +1625,13 @@
         // ============================================
         // FILE UPLOAD HANDLER
         // ============================================
+
+        /**
+         * Handle PDF file upload from user
+         * Validates file type and size, clears previous state, and parses the PDF
+         * @param {Event} event - File input change event
+         * @returns {Promise<void>}
+         */
         async function handleFileUpload(event) {
             const file = event.target.files[0];
 
@@ -1499,6 +1701,14 @@
         // ============================================
         // PDF PARSING FUNCTIONS
         // ============================================
+
+        /**
+         * Parse PDF file and extract text from all pages
+         * Validates PDF header, extracts text content, and updates app state
+         * @param {File} file - The PDF file to parse
+         * @returns {Promise<void>}
+         * @throws {Error} If PDF is invalid, encrypted, or text extraction fails
+         */
         async function parsePDF(file) {
             try {
                 // Cleanup old PDF document to free memory
@@ -1678,6 +1888,12 @@
         // ============================================
         // SEARCH HANDLER
         // ============================================
+
+        /**
+         * Handle search button click
+         * Validates search term, performs search in PDF text, and updates UI with results
+         * @returns {void}
+         */
         function handleSearch() {
             const searchTerm = document.getElementById('searchTerm').value.trim();
 
@@ -1792,13 +2008,105 @@
             document.getElementById('originalTotal').textContent = '$0.00';
             document.getElementById('newTotal').textContent = '$0.00';
 
+            // Hide quick actions
+            document.getElementById('quickActions').style.display = 'none';
+
             // Reset status
             updateStatus('Ready to process your PDF', 'loading');
         }
 
         // ============================================
+        // DEMO MODE
+        // ============================================
+
+        /**
+         * Load sample data for demo mode
+         * Creates 25 items named 'abc' with $40 each
+         * Allows users to try the app without uploading a PDF
+         */
+        function loadSampleData() {
+            // Confirm if there's existing work
+            if (appState.pdfText && appState.occurrences.length > 0) {
+                const proceed = confirm('Loading demo data will clear all current work. Continue?');
+                if (!proceed) return;
+            }
+
+            // Generate sample PDF text with 25 occurrences of 'abc'
+            let sampleText = 'SAMPLE INVOICE - DEMO MODE\n\n';
+            sampleText += 'This is a demonstration of the PDF Parser application.\n';
+            sampleText += 'Below are 25 line items, each named "abc" with a value of $40.00.\n';
+            sampleText += 'The running total should reach $1000.00 at the end.\n\n';
+            sampleText += '='.repeat(80) + '\n\n';
+
+            let runningTotal = 0;
+            for (let i = 1; i <= 25; i++) {
+                runningTotal += 40;
+                sampleText += `Line Item ${i}:\n`;
+                sampleText += `  Description: abc (Sample Product Item)\n`;
+                sampleText += `  Unit Price: $40.00\n`;
+                sampleText += `  Quantity: 1\n`;
+                sampleText += `  Line Total: $40.00\n`;
+                sampleText += `  Running Total: $${runningTotal.toFixed(2)}\n`;
+                sampleText += '\n';
+            }
+
+            sampleText += '='.repeat(80) + '\n';
+            sampleText += `GRAND TOTAL: $${runningTotal.toFixed(2)}\n\n`;
+            sampleText += 'End of Sample Invoice\n';
+
+            // Set app state
+            appState.pdfText = sampleText;
+            appState.fileName = 'sample_demo.pdf';
+            appState.pageCount = 1;
+            appState.occurrences = [];
+            appState.replacements.clear();
+
+            // Update file info
+            updateFileInfo();
+            updateTextPreview();
+
+            // Auto-search for 'abc'
+            document.getElementById('searchTerm').value = 'abc';
+
+            // Perform search
+            updateStatus('Searching for "abc" in demo data...', 'loading');
+            const results = searchInText('abc', appState.pdfText);
+            appState.occurrences = results;
+            updateItemsList(results, 'abc');
+
+            const count = results.length;
+            updateStatus(
+                `Demo mode loaded! Found ${count} occurrences of "abc" (each $40.00, total $${(count * 40).toFixed(2)})`,
+                'success'
+            );
+
+            // Show help message
+            setTimeout(() => {
+                alert(
+                    '🎯 Demo Mode Activated!\n\n' +
+                    `Found ${count} items named "abc" at $40.00 each.\n` +
+                    `Total: $${(count * 40).toFixed(2)}\n\n` +
+                    'Try this:\n' +
+                    '1. Edit the replacement names and values in the Replacement Mapping panel\n' +
+                    '2. Watch the running totals recalculate automatically\n' +
+                    '3. Click "Preview Changes" to see before/after comparison\n' +
+                    '4. Click "Download Modified Text" to save the results\n\n' +
+                    'No PDF upload required in demo mode!'
+                );
+            }, 100);
+        }
+
+        // ============================================
         // SEARCH FUNCTIONS
         // ============================================
+
+        /**
+         * Search for all occurrences of a term in text
+         * Extracts context, nearby numeric values, and calculates running totals
+         * @param {string} searchTerm - The term to search for
+         * @param {string} text - The text to search in
+         * @returns {Array<Object>} Array of occurrence objects with id, match, context, position, nearbyValue, runningTotalAtThisPoint
+         */
         function searchInText(searchTerm, text) {
             const occurrences = [];
             const searchLower = searchTerm.toLowerCase();
@@ -1928,6 +2236,9 @@
                 : 0;
             document.getElementById('originalTotal').textContent = '$' + totalSum.toFixed(2);
 
+            // Show quick actions
+            document.getElementById('quickActions').style.display = 'flex';
+
             // Also update the mapping table
             updateMappingTable(items);
         }
@@ -2054,6 +2365,12 @@
             }
         }
 
+        /**
+         * Handle changes to replacement mapping inputs
+         * Validates input values, updates state, recalculates totals
+         * @param {Event} event - Input change event
+         * @returns {void}
+         */
         function handleMappingChange(event) {
             const itemId = parseInt(event.target.getAttribute('data-item-id'));
             const isNameInput = event.target.classList.contains('new-name-input');
@@ -2490,6 +2807,11 @@
         // PREVIEW FUNCTIONS
         // ============================================
 
+        /**
+         * Handle preview button click
+         * Generates modified text and shows side-by-side comparison in modal
+         * @returns {void}
+         */
         function handlePreviewChanges() {
             if (!appState.pdfText) {
                 alert('No PDF text available. Please upload a PDF first.');
@@ -2742,6 +3064,9 @@
 
         /**
          * Download the modified text as a file
+         * Validates state, generates modified text, and creates a downloadable file
+         * Falls back to showing text in modal if download fails
+         * @returns {void}
          */
         function handleDownload() {
             if (!appState.pdfText) {
