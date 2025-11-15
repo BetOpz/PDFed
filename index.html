@@ -177,6 +177,116 @@
             background: #d1d5db;
         }
 
+        /* File Info Section */
+        .file-info-section {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .file-info-section.visible {
+            display: block;
+        }
+
+        .file-info-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #15803d;
+        }
+
+        .file-info-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px 12px;
+            font-size: 13px;
+        }
+
+        .file-info-label {
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .file-info-value {
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        /* Text Preview Section */
+        .text-preview-section {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .text-preview-section.visible {
+            display: block;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .preview-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .preview-toggle {
+            font-size: 12px;
+            color: #667eea;
+            cursor: pointer;
+            padding: 4px 8px;
+            background: white;
+            border: 1px solid #667eea;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .preview-toggle:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .text-preview-content {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #374151;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .text-preview-content.expanded {
+            max-height: 400px;
+        }
+
+        .text-preview-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .text-preview-content::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
+        }
+
         /* Middle Panel - Found Items */
         .items-list {
             background: #f9fafb;
@@ -431,6 +541,34 @@
                     <input type="file" id="pdfInput" accept=".pdf" style="display: none;">
                 </div>
 
+                <!-- File Info Section -->
+                <div class="file-info-section" id="fileInfoSection">
+                    <div class="file-info-header">
+                        ✅ PDF Loaded Successfully
+                    </div>
+                    <div class="file-info-grid">
+                        <span class="file-info-label">Filename:</span>
+                        <span class="file-info-value" id="fileName">-</span>
+
+                        <span class="file-info-label">Pages:</span>
+                        <span class="file-info-value" id="pageCount">-</span>
+
+                        <span class="file-info-label">Characters:</span>
+                        <span class="file-info-value" id="charCount">-</span>
+                    </div>
+                </div>
+
+                <!-- Text Preview Section -->
+                <div class="text-preview-section" id="textPreviewSection">
+                    <div class="preview-header">
+                        <span class="preview-title">📝 Extracted Text Preview</span>
+                        <button class="preview-toggle" id="previewToggle">Expand</button>
+                    </div>
+                    <div class="text-preview-content" id="textPreviewContent">
+                        No text extracted yet
+                    </div>
+                </div>
+
                 <div class="search-section">
                     <div class="form-group">
                         <label for="searchTerm">Search Term</label>
@@ -533,10 +671,15 @@
         // ============================================
         // GLOBAL STATE
         // ============================================
+        const appState = {
+            pdfText: '',           // Extracted text from PDF
+            fileName: '',          // Original filename
+            pageCount: 0,          // Number of pages in PDF
+            occurrences: [],       // Array of found items with context
+            replacements: new Map() // Map of replacements: original -> {newName, newValue}
+        };
+
         let pdfDocument = null;
-        let extractedText = '';
-        let foundItems = [];
-        let replacementMappings = [];
 
         // ============================================
         // INITIALIZATION
@@ -548,21 +691,50 @@
             pdfjsLib.GlobalWorkerOptions.workerSrc =
                 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-            // Initialize event listeners (to be implemented)
+            // Initialize event listeners
             initializeEventListeners();
         });
 
         // ============================================
-        // EVENT LISTENERS (PLACEHOLDERS)
+        // EVENT LISTENERS
         // ============================================
         function initializeEventListeners() {
+            const uploadSection = document.getElementById('uploadSection');
+            const pdfInput = document.getElementById('pdfInput');
+
             // Upload section click handler
-            document.getElementById('uploadSection').addEventListener('click', function() {
-                document.getElementById('pdfInput').click();
+            uploadSection.addEventListener('click', function() {
+                pdfInput.click();
             });
 
             // File input change handler
-            document.getElementById('pdfInput').addEventListener('change', handleFileUpload);
+            pdfInput.addEventListener('change', handleFileUpload);
+
+            // Drag and drop handlers
+            uploadSection.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadSection.style.background = 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)';
+            });
+
+            uploadSection.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadSection.style.background = 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)';
+            });
+
+            uploadSection.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadSection.style.background = 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)';
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type === 'application/pdf') {
+                    handleFileUpload({ target: { files: files } });
+                } else {
+                    alert('Please drop a valid PDF file');
+                }
+            });
 
             // Search button handler
             document.getElementById('searchBtn').addEventListener('click', handleSearch);
@@ -572,16 +744,157 @@
 
             // Download button handler
             document.getElementById('downloadBtn').addEventListener('click', handleDownload);
+
+            // Preview toggle handler
+            document.getElementById('previewToggle').addEventListener('click', togglePreview);
+        }
+
+        // ============================================
+        // FILE UPLOAD HANDLER
+        // ============================================
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            if (file.type !== 'application/pdf') {
+                alert('Please select a valid PDF file');
+                return;
+            }
+
+            try {
+                // Update UI to show loading state
+                updateStatus('Processing PDF...', 'loading');
+
+                // Parse the PDF
+                await parsePDF(file);
+
+                // Update UI to show success
+                updateStatus('PDF loaded successfully!', 'success');
+
+            } catch (error) {
+                console.error('Error processing PDF:', error);
+                updateStatus('Error loading PDF: ' + error.message, 'error');
+                alert('Error loading PDF: ' + error.message);
+            }
+        }
+
+        // ============================================
+        // PDF PARSING FUNCTIONS
+        // ============================================
+        async function parsePDF(file) {
+            try {
+                // Read file as ArrayBuffer
+                const arrayBuffer = await file.arrayBuffer();
+
+                // Load PDF document
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                pdfDocument = await loadingTask.promise;
+
+                // Update state
+                appState.fileName = file.name;
+                appState.pageCount = pdfDocument.numPages;
+
+                // Extract text from all pages
+                let fullText = '';
+
+                for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+                    const page = await pdfDocument.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+
+                    // Combine text items with spaces
+                    const pageText = textContent.items
+                        .map(item => item.str)
+                        .join(' ');
+
+                    fullText += pageText + '\n\n';
+                }
+
+                // Store extracted text
+                appState.pdfText = fullText.trim();
+
+                // Update UI with file info and preview
+                updateFileInfo();
+                updateTextPreview();
+
+            } catch (error) {
+                throw new Error('Failed to parse PDF: ' + error.message);
+            }
+        }
+
+        // ============================================
+        // UI UPDATE FUNCTIONS
+        // ============================================
+        function updateFileInfo() {
+            const fileInfoSection = document.getElementById('fileInfoSection');
+            const fileName = document.getElementById('fileName');
+            const pageCount = document.getElementById('pageCount');
+            const charCount = document.getElementById('charCount');
+
+            // Update values
+            fileName.textContent = appState.fileName;
+            pageCount.textContent = appState.pageCount;
+            charCount.textContent = appState.pdfText.length.toLocaleString();
+
+            // Show file info section
+            fileInfoSection.classList.add('visible');
+        }
+
+        function updateTextPreview() {
+            const textPreviewSection = document.getElementById('textPreviewSection');
+            const textPreviewContent = document.getElementById('textPreviewContent');
+
+            // Show first 500 characters
+            const previewText = appState.pdfText.substring(0, 500);
+            const hasMore = appState.pdfText.length > 500;
+
+            textPreviewContent.textContent = previewText + (hasMore ? '...' : '');
+
+            // Show text preview section
+            textPreviewSection.classList.add('visible');
+        }
+
+        function togglePreview() {
+            const previewContent = document.getElementById('textPreviewContent');
+            const toggleBtn = document.getElementById('previewToggle');
+
+            if (previewContent.classList.contains('expanded')) {
+                // Collapse: show first 500 characters
+                previewContent.classList.remove('expanded');
+                const previewText = appState.pdfText.substring(0, 500);
+                const hasMore = appState.pdfText.length > 500;
+                previewContent.textContent = previewText + (hasMore ? '...' : '');
+                toggleBtn.textContent = 'Expand';
+            } else {
+                // Expand: show full text
+                previewContent.classList.add('expanded');
+                previewContent.textContent = appState.pdfText;
+                toggleBtn.textContent = 'Collapse';
+            }
+        }
+
+        function updateStatus(message, type) {
+            const statusText = document.getElementById('statusText');
+            const statusIndicator = document.getElementById('statusIndicator');
+
+            statusText.textContent = message;
+
+            // Remove all status classes
+            statusIndicator.classList.remove('valid', 'invalid');
+
+            // Add appropriate class
+            if (type === 'success') {
+                statusIndicator.classList.add('valid');
+            } else if (type === 'error') {
+                statusIndicator.classList.add('invalid');
+            }
         }
 
         // ============================================
         // HANDLER FUNCTIONS (TO BE IMPLEMENTED)
         // ============================================
-        function handleFileUpload(event) {
-            console.log('File upload handler - to be implemented');
-            // TODO: Implement PDF upload and parsing
-        }
-
         function handleSearch() {
             console.log('Search handler - to be implemented');
             // TODO: Implement search functionality
@@ -595,13 +908,6 @@
         function handleDownload() {
             console.log('Download handler - to be implemented');
             // TODO: Implement download functionality
-        }
-
-        // ============================================
-        // PDF PARSING FUNCTIONS (TO BE IMPLEMENTED)
-        // ============================================
-        async function parsePDF(file) {
-            // TODO: Implement PDF parsing using PDF.js
         }
 
         // ============================================
