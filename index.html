@@ -893,16 +893,96 @@
         }
 
         // ============================================
-        // HANDLER FUNCTIONS (TO BE IMPLEMENTED)
+        // SEARCH HANDLER
         // ============================================
         function handleSearch() {
-            console.log('Search handler - to be implemented');
-            // TODO: Implement search functionality
+            const searchTerm = document.getElementById('searchTerm').value.trim();
+
+            if (!searchTerm) {
+                alert('Please enter a search term');
+                return;
+            }
+
+            if (!appState.pdfText) {
+                alert('Please upload a PDF first');
+                return;
+            }
+
+            try {
+                // Update status
+                updateStatus('Searching for "' + searchTerm + '"...', 'loading');
+
+                // Perform search
+                const results = searchInText(searchTerm, appState.pdfText);
+
+                // Store results in state
+                appState.occurrences = results;
+
+                // Update UI with results
+                updateItemsList(results, searchTerm);
+
+                // Update status
+                const count = results.length;
+                updateStatus(
+                    'Found ' + count + ' occurrence' + (count !== 1 ? 's' : '') + ' of "' + searchTerm + '"',
+                    count > 0 ? 'success' : 'loading'
+                );
+
+            } catch (error) {
+                console.error('Search error:', error);
+                updateStatus('Error during search: ' + error.message, 'error');
+                alert('Error during search: ' + error.message);
+            }
         }
 
         function handleClear() {
-            console.log('Clear handler - to be implemented');
-            // TODO: Implement clear functionality
+            // Clear state
+            appState.occurrences = [];
+            appState.replacements.clear();
+
+            // Clear search input
+            document.getElementById('searchTerm').value = '';
+
+            // Clear results display
+            const itemsList = document.getElementById('itemsList');
+            itemsList.innerHTML = `
+                <div class="placeholder-text">
+                    <p><strong>No items found yet.</strong></p>
+                    <p>Upload a PDF and search for items to see them listed here.</p>
+                    <br>
+                    <p>Each found item will display:</p>
+                    <ul style="text-align: left; display: inline-block; margin-top: 12px;">
+                        <li>Item name/description</li>
+                        <li>Current value/amount</li>
+                        <li>Location in document (page, position)</li>
+                        <li>Surrounding context</li>
+                    </ul>
+                </div>
+            `;
+
+            // Clear mapping table
+            const mappingTable = document.getElementById('mappingTable');
+            mappingTable.innerHTML = `
+                <div class="placeholder-text">
+                    <p><strong>Replacement mappings will appear here.</strong></p>
+                    <p>For each found item, you can specify:</p>
+                    <br>
+                    <ul style="text-align: left; display: inline-block; margin-top: 12px;">
+                        <li><strong>New Name:</strong> Replacement text for the item</li>
+                        <li><strong>New Value:</strong> Replacement amount/number</li>
+                    </ul>
+                    <br><br>
+                    <p>The table will show:</p>
+                    <p style="color: #ef4444; margin-top: 8px;">❌ Original → ✅ Replacement</p>
+                </div>
+            `;
+
+            // Reset totals
+            document.getElementById('originalTotal').textContent = '$0.00';
+            document.getElementById('newTotal').textContent = '$0.00';
+
+            // Reset status
+            updateStatus('Ready to process your PDF', 'loading');
         }
 
         function handleDownload() {
@@ -911,25 +991,151 @@
         }
 
         // ============================================
-        // SEARCH FUNCTIONS (TO BE IMPLEMENTED)
+        // SEARCH FUNCTIONS
         // ============================================
         function searchInText(searchTerm, text) {
-            // TODO: Implement text search with context
+            const occurrences = [];
+            const searchLower = searchTerm.toLowerCase();
+            let position = 0;
+            let id = 0;
+
+            // Find all occurrences
+            while (position < text.length) {
+                const index = text.toLowerCase().indexOf(searchLower, position);
+
+                if (index === -1) {
+                    break;
+                }
+
+                // Extract context (100 chars before and after)
+                const contextStart = Math.max(0, index - 100);
+                const contextEnd = Math.min(text.length, index + searchTerm.length + 100);
+                const fullContext = text.substring(contextStart, contextEnd);
+
+                // Add ellipsis if truncated
+                let context = '';
+                if (contextStart > 0) context += '...';
+                context += fullContext;
+                if (contextEnd < text.length) context += '...';
+
+                // Extract nearby numeric value (next 10 chars after match)
+                const afterMatch = text.substring(index + searchTerm.length, index + searchTerm.length + 10);
+                const nearbyValue = extractNumericValue(afterMatch);
+
+                // Calculate running total (sum all values found before this occurrence)
+                const runningTotal = calculateRunningTotal(occurrences, nearbyValue);
+
+                occurrences.push({
+                    id: id++,
+                    match: text.substring(index, index + searchTerm.length),
+                    context: context,
+                    position: index,
+                    nearbyValue: nearbyValue,
+                    runningTotalAtThisPoint: runningTotal
+                });
+
+                position = index + 1;
+            }
+
+            return occurrences;
+        }
+
+        function extractNumericValue(text) {
+            // Look for numbers with optional decimal point
+            // Matches: 40, 40.00, .50, etc.
+            const match = text.match(/[\d,.]+/);
+
+            if (match) {
+                // Remove commas and parse as float
+                const numStr = match[0].replace(/,/g, '');
+                const num = parseFloat(numStr);
+                return isNaN(num) ? 0 : num;
+            }
+
+            return 0;
+        }
+
+        function calculateRunningTotal(previousOccurrences, currentValue) {
+            // Sum all previous values
+            let total = 0;
+            for (const occurrence of previousOccurrences) {
+                total += occurrence.nearbyValue;
+            }
+
+            // Add current value
+            total += currentValue;
+
+            return total;
         }
 
         // ============================================
-        // UI UPDATE FUNCTIONS (TO BE IMPLEMENTED)
+        // UI UPDATE FUNCTIONS
         // ============================================
-        function updateItemsList(items) {
-            // TODO: Update the found items panel
+        function updateItemsList(items, searchTerm) {
+            const itemsList = document.getElementById('itemsList');
+
+            if (!items || items.length === 0) {
+                itemsList.innerHTML = `
+                    <div class="placeholder-text">
+                        <p><strong>No matches found.</strong></p>
+                        <p>Try a different search term or upload another PDF.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Build results HTML
+            let html = `
+                <div style="margin-bottom: 16px; padding: 12px; background: #e0e7ff; border-radius: 8px;">
+                    <strong style="color: #667eea;">Found ${items.length} occurrence${items.length !== 1 ? 's' : ''} of "${searchTerm}"</strong>
+                </div>
+            `;
+
+            items.forEach((item, index) => {
+                const occurrenceNum = index + 1;
+                const value = item.nearbyValue.toFixed(2);
+                const runningTotal = item.runningTotalAtThisPoint.toFixed(2);
+
+                html += `
+                    <div class="item-card">
+                        <div class="item-header">
+                            <span class="item-name">#${occurrenceNum}: "${item.match}"</span>
+                            <span class="item-value">$${value}</span>
+                        </div>
+                        <div class="item-details">
+                            <strong>Context:</strong> ${escapeHtml(item.context)}
+                        </div>
+                        <div class="item-details" style="margin-top: 8px;">
+                            <strong>Position:</strong> ${item.position.toLocaleString()} |
+                            <strong>Nearby Value:</strong> $${value} |
+                            <strong>Running Total:</strong> $${runningTotal}
+                        </div>
+                    </div>
+                `;
+            });
+
+            itemsList.innerHTML = html;
+
+            // Update totals display
+            const totalSum = items.length > 0
+                ? items[items.length - 1].runningTotalAtThisPoint
+                : 0;
+            document.getElementById('originalTotal').textContent = '$' + totalSum.toFixed(2);
         }
 
         function updateMappingTable(mappings) {
-            // TODO: Update the replacement mapping panel
+            // TODO: Update the replacement mapping panel (will be implemented in next prompt)
         }
 
         function updateValidationStatus(isValid, originalTotal, newTotal) {
-            // TODO: Update validation status and totals
+            // TODO: Update validation status and totals (will be implemented in next prompt)
+        }
+
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // ============================================
