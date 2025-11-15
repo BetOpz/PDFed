@@ -1195,6 +1195,43 @@
         </div>
     </div>
 
+    <!-- Download Fallback Modal -->
+    <div class="modal-overlay" id="downloadFallbackModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Download Failed - Text Preview</h2>
+                <button class="modal-close" id="closeDownloadFallbackBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 16px; padding: 12px; background: #fee2e2; border-radius: 8px; color: #991b1b;">
+                    <strong>Download blocked by browser.</strong> You can copy the text below and save it manually.
+                </div>
+                <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+                    <button class="action-btn" id="copyToClipboardBtn" style="flex: 1;">
+                        Copy All Text to Clipboard
+                    </button>
+                    <button class="action-btn" id="retryDownloadBtn" style="flex: 1;">
+                        Retry Download
+                    </button>
+                </div>
+                <div style="margin-bottom: 8px; font-size: 12px; color: #666;">
+                    Modified Text (Full Content):
+                </div>
+                <textarea id="downloadFallbackText" readonly style="
+                    width: 100%;
+                    height: 400px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    padding: 12px;
+                    border: 1px solid #cbd5e0;
+                    border-radius: 8px;
+                    resize: vertical;
+                    background: #f7fafc;
+                "></textarea>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
@@ -1289,6 +1326,22 @@
                 }
             });
 
+            // Download fallback modal close handler
+            document.getElementById('closeDownloadFallbackBtn').addEventListener('click', closeDownloadFallbackModal);
+
+            // Download fallback modal - close when clicking outside
+            document.getElementById('downloadFallbackModal').addEventListener('click', function(e) {
+                if (e.target.id === 'downloadFallbackModal') {
+                    closeDownloadFallbackModal();
+                }
+            });
+
+            // Copy to clipboard button
+            document.getElementById('copyToClipboardBtn').addEventListener('click', copyDownloadTextToClipboard);
+
+            // Retry download button
+            document.getElementById('retryDownloadBtn').addEventListener('click', retryDownload);
+
             // Preview toggle handler
             document.getElementById('previewToggle').addEventListener('click', togglePreview);
 
@@ -1327,6 +1380,54 @@
         }
 
         // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+
+        /**
+         * Clear all replacements (called by Ctrl+Z)
+         */
+        function handleClearAllReplacements() {
+            if (appState.replacements.size === 0) {
+                return;
+            }
+
+            if (confirm('Clear all replacements? This cannot be undone.')) {
+                appState.replacements.clear();
+
+                // Re-render mapping table to clear inputs
+                if (appState.occurrences.length > 0) {
+                    updateMappingTable(appState.occurrences);
+                }
+
+                // Recalculate
+                recalculateRunningTotals();
+                updateValidation();
+            }
+        }
+
+        /**
+         * Validate file size and warn if too large
+         */
+        function validateFileSize(file) {
+            const maxSize = 100 * 1024 * 1024; // 100MB
+            if (file.size > maxSize) {
+                return confirm(
+                    'Warning: This PDF is very large (' + (file.size / 1024 / 1024).toFixed(2) + ' MB).\n\n' +
+                    'Processing may be slow and could use significant memory.\n\n' +
+                    'Continue anyway?'
+                );
+            }
+            return true;
+        }
+
+        /**
+         * Escape regex special characters in search term
+         */
+        function escapeRegex(str) {
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // ============================================
         // FILE UPLOAD HANDLER
         // ============================================
         async function handleFileUpload(event) {
@@ -1336,12 +1437,35 @@
                 return;
             }
 
-            if (file.type !== 'application/pdf') {
-                alert('Please select a valid PDF file');
+            // Validate file type
+            const validTypes = ['application/pdf', 'application/x-pdf'];
+            const isPDF = validTypes.includes(file.type) || file.name.toLowerCase().endsWith('.pdf');
+
+            if (!isPDF) {
+                alert('Please select a valid PDF file.\n\nFile type detected: ' + (file.type || 'unknown'));
+                return;
+            }
+
+            // Validate file size
+            if (!validateFileSize(file)) {
                 return;
             }
 
             try {
+                // Clear previous state to free memory
+                if (appState.pdfText) {
+                    const proceed = confirm('Loading a new PDF will clear all current work. Continue?');
+                    if (!proceed) {
+                        return;
+                    }
+
+                    // Clear previous data
+                    appState.pdfText = '';
+                    appState.occurrences = [];
+                    appState.replacements.clear();
+                    handleClear();
+                }
+
                 // Update UI to show loading state
                 updateStatus('Processing PDF...', 'loading');
 
@@ -1353,8 +1477,22 @@
 
             } catch (error) {
                 console.error('Error processing PDF:', error);
-                updateStatus('Error loading PDF: ' + error.message, 'error');
-                alert('Error loading PDF: ' + error.message);
+
+                // User-friendly error messages
+                let errorMessage = 'Failed to load PDF file.';
+
+                if (error.message.includes('Invalid PDF') || error.message.includes('PDF header')) {
+                    errorMessage = 'This file doesn\'t appear to be a valid PDF.\n\nThe file may be corrupted or in an unsupported format.';
+                } else if (error.message.includes('password') || error.message.includes('encrypted')) {
+                    errorMessage = 'This PDF is password-protected.\n\nPlease remove the password protection and try again.';
+                } else if (error.message.includes('getDocument')) {
+                    errorMessage = 'Unable to load this PDF.\n\nThe file may be corrupted or use an unsupported PDF version.';
+                } else {
+                    errorMessage = 'Error loading PDF: ' + error.message;
+                }
+
+                updateStatus('Failed to load PDF', 'error');
+                alert(errorMessage);
             }
         }
 
@@ -1363,11 +1501,32 @@
         // ============================================
         async function parsePDF(file) {
             try {
+                // Cleanup old PDF document to free memory
+                if (pdfDocument) {
+                    try {
+                        pdfDocument.destroy();
+                    } catch (e) {
+                        console.warn('Error destroying old PDF document:', e);
+                    }
+                    pdfDocument = null;
+                }
+
                 // Read file as ArrayBuffer
                 const arrayBuffer = await file.arrayBuffer();
 
-                // Load PDF document
-                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                // Validate that it's actually a PDF
+                const header = new Uint8Array(arrayBuffer.slice(0, 5));
+                const headerString = String.fromCharCode.apply(null, header);
+                if (!headerString.includes('%PDF')) {
+                    throw new Error('Invalid PDF file - missing PDF header');
+                }
+
+                // Load PDF document with error handling
+                const loadingTask = pdfjsLib.getDocument({
+                    data: arrayBuffer,
+                    verbosity: 0 // Reduce console noise
+                });
+
                 pdfDocument = await loadingTask.promise;
 
                 // Update state
@@ -1376,15 +1535,27 @@
 
                 // Extract text from all pages
                 let fullText = '';
+                let hasText = false;
 
                 for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
                     const page = await pdfDocument.getPage(pageNum);
                     const textContent = await page.getTextContent();
 
-                    // Combine text items with spaces
+                    // Combine text items with spaces, handling special characters
                     const pageText = textContent.items
-                        .map(item => item.str)
+                        .map(item => {
+                            // Handle potential encoding issues
+                            try {
+                                return item.str || '';
+                            } catch (e) {
+                                return '';
+                            }
+                        })
                         .join(' ');
+
+                    if (pageText.trim().length > 0) {
+                        hasText = true;
+                    }
 
                     fullText += pageText + '\n\n';
                 }
@@ -1392,11 +1563,34 @@
                 // Store extracted text
                 appState.pdfText = fullText.trim();
 
+                // Warn if no text was found
+                if (!hasText || appState.pdfText.length === 0) {
+                    const proceed = confirm(
+                        'Warning: No text found in this PDF.\n\n' +
+                        'The PDF may contain only images or scanned pages.\n\n' +
+                        'Continue anyway? (You won\'t be able to search or replace anything.)'
+                    );
+
+                    if (!proceed) {
+                        appState.pdfText = '';
+                        appState.fileName = '';
+                        appState.pageCount = 0;
+                        throw new Error('User cancelled - PDF contains no text');
+                    }
+                }
+
                 // Update UI with file info and preview
                 updateFileInfo();
                 updateTextPreview();
 
             } catch (error) {
+                // Clean up on error
+                pdfDocument = null;
+
+                if (error.message.includes('User cancelled')) {
+                    throw error;
+                }
+
                 throw new Error('Failed to parse PDF: ' + error.message);
             }
         }
@@ -1487,21 +1681,44 @@
         function handleSearch() {
             const searchTerm = document.getElementById('searchTerm').value.trim();
 
+            // Validation: empty search term
             if (!searchTerm) {
-                alert('Please enter a search term');
+                alert('Please enter a search term.\n\nThe search field cannot be empty.');
                 return;
             }
 
+            // Validation: search term too short
+            if (searchTerm.length < 2) {
+                alert('Search term is too short.\n\nPlease enter at least 2 characters.');
+                return;
+            }
+
+            // Validation: PDF loaded
             if (!appState.pdfText) {
-                alert('Please upload a PDF first');
+                alert('Please upload a PDF first.\n\nNo document is currently loaded.');
+                return;
+            }
+
+            // Validation: PDF has text
+            if (appState.pdfText.length === 0) {
+                alert('The current PDF contains no text.\n\nCannot perform search on an empty document.');
                 return;
             }
 
             try {
+                // Clear previous replacements if starting a new search
+                if (appState.occurrences.length > 0) {
+                    const proceed = confirm('Starting a new search will clear all current replacements. Continue?');
+                    if (!proceed) {
+                        return;
+                    }
+                    appState.replacements.clear();
+                }
+
                 // Update status
                 updateStatus('Searching for "' + searchTerm + '"...', 'loading');
 
-                // Perform search
+                // Perform search (case-insensitive by default)
                 const results = searchInText(searchTerm, appState.pdfText);
 
                 // Store results in state
@@ -1512,15 +1729,20 @@
 
                 // Update status
                 const count = results.length;
-                updateStatus(
-                    'Found ' + count + ' occurrence' + (count !== 1 ? 's' : '') + ' of "' + searchTerm + '"',
-                    count > 0 ? 'success' : 'loading'
-                );
+                if (count === 0) {
+                    updateStatus('No occurrences found for "' + searchTerm + '"', 'error');
+                    alert('No matches found.\n\nThe search term "' + searchTerm + '" was not found in the PDF.');
+                } else {
+                    updateStatus(
+                        'Found ' + count + ' occurrence' + (count !== 1 ? 's' : '') + ' of "' + searchTerm + '"',
+                        'success'
+                    );
+                }
 
             } catch (error) {
                 console.error('Search error:', error);
-                updateStatus('Error during search: ' + error.message, 'error');
-                alert('Error during search: ' + error.message);
+                updateStatus('Error during search', 'error');
+                alert('Error during search:\n\n' + error.message);
             }
         }
 
@@ -1841,7 +2063,61 @@
             const valueInput = document.querySelector(`.new-value-input[data-item-id="${itemId}"]`);
 
             const newName = nameInput.value.trim();
-            const newValue = parseFloat(valueInput.value) || 0;
+            const rawValue = valueInput.value.trim();
+
+            // Reset validation classes
+            valueInput.classList.remove('warning', 'error');
+
+            // Parse and validate the value
+            let newValue = 0;
+            let hasWarning = false;
+
+            if (rawValue === '') {
+                // Empty value - use 0 but show warning
+                newValue = 0;
+                valueInput.classList.add('warning');
+                hasWarning = true;
+            } else {
+                newValue = parseFloat(rawValue);
+
+                // Validate numeric
+                if (isNaN(newValue)) {
+                    valueInput.classList.add('error');
+                    valueInput.value = '';
+                    alert('Invalid value.\n\nPlease enter a valid number.');
+                    return;
+                }
+
+                // Warn about negative values
+                if (newValue < 0) {
+                    const proceed = confirm(
+                        'Negative value detected: $' + newValue.toFixed(2) + '\n\n' +
+                        'Is this intentional? Negative values may cause unexpected totals.'
+                    );
+                    if (!proceed) {
+                        valueInput.value = '';
+                        return;
+                    }
+                    valueInput.classList.add('warning');
+                }
+
+                // Warn about very large values
+                if (newValue > 1000000) {
+                    const proceed = confirm(
+                        'Very large value detected: $' + newValue.toLocaleString() + '\n\n' +
+                        'Is this correct?'
+                    );
+                    if (!proceed) {
+                        valueInput.value = '';
+                        return;
+                    }
+                }
+
+                // Warn about very small values
+                if (newValue > 0 && newValue < 0.01) {
+                    valueInput.classList.add('warning');
+                }
+            }
 
             // Update or create replacement in state
             appState.replacements.set(itemId, {
@@ -2259,6 +2535,94 @@
         }
 
         // ============================================
+        // DOWNLOAD FALLBACK MODAL
+        // ============================================
+
+        function showDownloadFallback(modifiedText, filename) {
+            // Store for retry
+            window._lastDownloadAttempt = { text: modifiedText, filename: filename };
+
+            // Display text in modal
+            document.getElementById('downloadFallbackText').value = modifiedText;
+
+            // Show modal
+            document.getElementById('downloadFallbackModal').classList.add('visible');
+
+            // Update status
+            updateStatus('Download blocked - text available in modal', 'error');
+        }
+
+        function closeDownloadFallbackModal() {
+            document.getElementById('downloadFallbackModal').classList.remove('visible');
+        }
+
+        async function copyDownloadTextToClipboard() {
+            const text = document.getElementById('downloadFallbackText').value;
+
+            try {
+                // Try modern clipboard API first
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    alert('✓ Text copied to clipboard!\n\nYou can now paste it into a text editor and save manually.');
+                    updateStatus('Text copied to clipboard', 'success');
+                } else {
+                    // Fallback to older method
+                    const textarea = document.getElementById('downloadFallbackText');
+                    textarea.select();
+                    const success = document.execCommand('copy');
+
+                    if (success) {
+                        alert('✓ Text copied to clipboard!\n\nYou can now paste it into a text editor and save manually.');
+                        updateStatus('Text copied to clipboard', 'success');
+                    } else {
+                        throw new Error('Copy command failed');
+                    }
+                }
+            } catch (error) {
+                console.error('Copy to clipboard failed:', error);
+                alert(
+                    'Failed to copy to clipboard automatically.\n\n' +
+                    'Please manually select all text in the box below and copy it (Ctrl+A, then Ctrl+C).'
+                );
+            }
+        }
+
+        function retryDownload() {
+            if (!window._lastDownloadAttempt) {
+                alert('No download to retry.');
+                return;
+            }
+
+            const { text, filename } = window._lastDownloadAttempt;
+
+            try {
+                // Try download again
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                }, 100);
+
+                // Close modal if successful
+                closeDownloadFallbackModal();
+                updateStatus('✓ File downloaded successfully: ' + filename, 'success');
+
+            } catch (error) {
+                console.error('Retry download failed:', error);
+                alert('Download failed again.\n\nPlease use the "Copy to Clipboard" button instead.');
+            }
+        }
+
+        // ============================================
         // DOWNLOAD FUNCTIONS
         // ============================================
 
@@ -2408,6 +2772,7 @@
                 const patterns = findRunningTotalPatterns(appState.pdfText);
 
                 // Generate modified text
+                updateStatus('Generating modified text...', 'loading');
                 const modifiedText = generateModifiedText(
                     appState.pdfText,
                     appState.occurrences,
@@ -2415,32 +2780,71 @@
                     patterns
                 );
 
+                // Warn if text is very large
+                const textSizeMB = new Blob([modifiedText]).size / 1024 / 1024;
+                if (textSizeMB > 10) {
+                    const proceed = confirm(
+                        'Warning: The modified text is very large (' + textSizeMB.toFixed(2) + ' MB).\n\n' +
+                        'Download may be slow or fail.\n\n' +
+                        'Continue?'
+                    );
+                    if (!proceed) {
+                        updateStatus('Download cancelled', 'error');
+                        return;
+                    }
+                }
+
                 // Create filename
                 const originalName = appState.fileName.replace('.pdf', '');
                 const filename = 'modified_' + originalName + '.txt';
 
-                // Create blob and download
-                const blob = new Blob([modifiedText], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
+                // Try to download
+                updateStatus('Initiating download...', 'loading');
 
-                // Create download link
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
+                try {
+                    // Create blob and download
+                    const blob = new Blob([modifiedText], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
 
-                // Clean up
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
+                    // Create download link
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
 
-                // Update status
-                updateStatus('✓ File downloaded successfully: ' + filename, 'success');
+                    // Check if download likely succeeded by waiting briefly
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+
+                    // Update status (optimistic)
+                    updateStatus('✓ File downloaded successfully: ' + filename, 'success');
+
+                } catch (downloadError) {
+                    console.error('Download failed:', downloadError);
+
+                    // Show fallback modal with text
+                    showDownloadFallback(modifiedText, filename);
+                }
 
             } catch (error) {
-                console.error('Download error:', error);
-                alert('Error generating download: ' + error.message);
+                console.error('Error generating modified text:', error);
+
+                // User-friendly error messages
+                let errorMessage = 'Failed to generate modified text.';
+
+                if (error.message.includes('memory') || error.message.includes('Maximum')) {
+                    errorMessage = 'Out of memory error.\n\nThe PDF is too large to process in the browser.\n\nTry a smaller PDF or process fewer replacements at once.';
+                } else if (error.message.includes('stack')) {
+                    errorMessage = 'Processing error.\n\nThe text is too complex to process.\n\nTry reducing the number of replacements.';
+                } else {
+                    errorMessage = 'Error generating modified text:\n\n' + error.message;
+                }
+
                 updateStatus('Error generating download', 'error');
+                alert(errorMessage);
             }
         }
 
