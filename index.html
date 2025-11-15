@@ -394,6 +394,146 @@
             font-weight: 600;
         }
 
+        /* Mapping Input Fields */
+        .mapping-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .mapping-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .mapping-card-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .mapping-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mapping-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .mapping-value {
+            font-size: 13px;
+            padding: 6px;
+            background: #f9fafb;
+            border-radius: 4px;
+            color: #1f2937;
+        }
+
+        .mapping-value.original {
+            color: #ef4444;
+            text-decoration: line-through;
+        }
+
+        .mapping-value.new {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .mapping-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .mapping-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .mapping-totals {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .mapping-total-item {
+            font-size: 11px;
+        }
+
+        .mapping-total-label {
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .mapping-total-value {
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .fill-remaining-btn {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .fill-remaining-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+        }
+
+        .fill-remaining-btn:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .auto-fill-note {
+            margin-top: 8px;
+            padding: 8px;
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #92400e;
+            display: none;
+        }
+
+        .auto-fill-note.visible {
+            display: block;
+        }
+
         /* Bottom Section - Validation & Download */
         .bottom-section {
             border-top: 1px solid #e5e7eb;
@@ -1121,14 +1261,309 @@
                 ? items[items.length - 1].runningTotalAtThisPoint
                 : 0;
             document.getElementById('originalTotal').textContent = '$' + totalSum.toFixed(2);
+
+            // Also update the mapping table
+            updateMappingTable(items);
         }
 
-        function updateMappingTable(mappings) {
-            // TODO: Update the replacement mapping panel (will be implemented in next prompt)
+        function updateMappingTable(items) {
+            const mappingTable = document.getElementById('mappingTable');
+
+            if (!items || items.length === 0) {
+                mappingTable.innerHTML = `
+                    <div class="placeholder-text">
+                        <p><strong>Replacement mappings will appear here.</strong></p>
+                        <p>For each found item, you can specify:</p>
+                        <br>
+                        <ul style="text-align: left; display: inline-block; margin-top: 12px;">
+                            <li><strong>New Name:</strong> Replacement text for the item</li>
+                            <li><strong>New Value:</strong> Replacement amount/number</li>
+                        </ul>
+                        <br><br>
+                        <p>The table will show:</p>
+                        <p style="color: #ef4444; margin-top: 8px;">❌ Original → ✅ Replacement</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+
+            // Create mapping card for each occurrence
+            items.forEach((item, index) => {
+                const occurrenceNum = index + 1;
+                const originalValue = item.nearbyValue.toFixed(2);
+                const originalRunningTotal = item.runningTotalAtThisPoint.toFixed(2);
+
+                // Get existing replacement if any
+                const existing = appState.replacements.get(item.id);
+                const newName = existing ? existing.newName : '';
+                const newValue = existing ? existing.newValue : '';
+                const newRunningTotal = existing ? existing.newRunningTotal : originalRunningTotal;
+
+                html += `
+                    <div class="mapping-card" data-item-id="${item.id}">
+                        <div class="mapping-card-header">
+                            #${occurrenceNum}: Occurrence Mapping
+                        </div>
+
+                        <div class="mapping-grid">
+                            <div class="mapping-field">
+                                <span class="mapping-label">Original Name</span>
+                                <div class="mapping-value original">"${escapeHtml(item.match)}"</div>
+                            </div>
+                            <div class="mapping-field">
+                                <span class="mapping-label">New Name</span>
+                                <input
+                                    type="text"
+                                    class="mapping-input new-name-input"
+                                    data-item-id="${item.id}"
+                                    placeholder="Enter new name..."
+                                    value="${escapeHtml(newName)}"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="mapping-grid">
+                            <div class="mapping-field">
+                                <span class="mapping-label">Original Value</span>
+                                <div class="mapping-value original">$${originalValue}</div>
+                            </div>
+                            <div class="mapping-field">
+                                <span class="mapping-label">New Value</span>
+                                <input
+                                    type="number"
+                                    class="mapping-input new-value-input"
+                                    data-item-id="${item.id}"
+                                    placeholder="0.00"
+                                    step="0.01"
+                                    value="${newValue}"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="mapping-totals">
+                            <div class="mapping-total-item">
+                                <span class="mapping-total-label">Original Running Total:</span>
+                                <span class="mapping-total-value" style="color: #ef4444;">$${originalRunningTotal}</span>
+                            </div>
+                            <div class="mapping-total-item">
+                                <span class="mapping-total-label">New Running Total:</span>
+                                <span class="mapping-total-value new-running-total" data-item-id="${item.id}" style="color: #10b981;">$${newRunningTotal}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Add Fill Remaining button
+            html += `
+                <button class="fill-remaining-btn" id="fillRemainingBtn">
+                    📊 Fill Remaining Items
+                </button>
+                <div class="auto-fill-note" id="autoFillNote"></div>
+            `;
+
+            mappingTable.innerHTML = html;
+
+            // Add event listeners to all inputs
+            attachMappingEventListeners();
+        }
+
+        function attachMappingEventListeners() {
+            // Attach listeners to all name inputs
+            document.querySelectorAll('.new-name-input').forEach(input => {
+                input.addEventListener('input', handleMappingChange);
+            });
+
+            // Attach listeners to all value inputs
+            document.querySelectorAll('.new-value-input').forEach(input => {
+                input.addEventListener('input', handleMappingChange);
+            });
+
+            // Attach listener to Fill Remaining button
+            const fillBtn = document.getElementById('fillRemainingBtn');
+            if (fillBtn) {
+                fillBtn.addEventListener('click', handleFillRemaining);
+            }
+        }
+
+        function handleMappingChange(event) {
+            const itemId = parseInt(event.target.getAttribute('data-item-id'));
+            const isNameInput = event.target.classList.contains('new-name-input');
+
+            // Get current values for this item
+            const nameInput = document.querySelector(`.new-name-input[data-item-id="${itemId}"]`);
+            const valueInput = document.querySelector(`.new-value-input[data-item-id="${itemId}"]`);
+
+            const newName = nameInput.value.trim();
+            const newValue = parseFloat(valueInput.value) || 0;
+
+            // Update or create replacement in state
+            appState.replacements.set(itemId, {
+                newName: newName,
+                newValue: newValue,
+                newRunningTotal: 0 // Will be calculated
+            });
+
+            // Recalculate all running totals
+            recalculateRunningTotals();
+
+            // Update validation
+            updateValidation();
+        }
+
+        function recalculateRunningTotals() {
+            let runningTotal = 0;
+
+            // Iterate through all occurrences in order
+            appState.occurrences.forEach((occurrence) => {
+                const replacement = appState.replacements.get(occurrence.id);
+
+                if (replacement && replacement.newValue > 0) {
+                    // Use new value if replacement exists
+                    runningTotal += replacement.newValue;
+                } else {
+                    // Use original value
+                    runningTotal += occurrence.nearbyValue;
+                }
+
+                // Update the replacement with new running total
+                if (replacement) {
+                    replacement.newRunningTotal = runningTotal;
+                }
+
+                // Update UI for this running total
+                const runningTotalElement = document.querySelector(`.new-running-total[data-item-id="${occurrence.id}"]`);
+                if (runningTotalElement) {
+                    runningTotalElement.textContent = '$' + runningTotal.toFixed(2);
+                }
+            });
+
+            // Update the bottom total display
+            document.getElementById('newTotal').textContent = '$' + runningTotal.toFixed(2);
+
+            return runningTotal;
+        }
+
+        function updateValidation() {
+            // Calculate original total
+            const originalTotal = appState.occurrences.length > 0
+                ? appState.occurrences[appState.occurrences.length - 1].runningTotalAtThisPoint
+                : 0;
+
+            // Calculate new total from replacements
+            let newTotal = 0;
+            appState.occurrences.forEach((occurrence) => {
+                const replacement = appState.replacements.get(occurrence.id);
+                if (replacement && replacement.newValue > 0) {
+                    newTotal += replacement.newValue;
+                } else {
+                    newTotal += occurrence.nearbyValue;
+                }
+            });
+
+            // Update validation status
+            const statusText = document.getElementById('statusText');
+            const statusIndicator = document.getElementById('statusIndicator');
+
+            const difference = Math.abs(originalTotal - newTotal);
+            const isMatch = difference < 0.01; // Allow for small floating point errors
+
+            if (isMatch) {
+                statusText.textContent = '✓ Totals match! Replacements sum to $' + originalTotal.toFixed(2);
+                statusIndicator.classList.remove('invalid');
+                statusIndicator.classList.add('valid');
+
+                // Enable download button
+                document.getElementById('downloadBtn').disabled = false;
+            } else {
+                const needed = originalTotal - newTotal;
+                if (needed > 0) {
+                    statusText.textContent = '✗ Totals don\'t match. Need $' + needed.toFixed(2) + ' more to reach $' + originalTotal.toFixed(2);
+                } else {
+                    statusText.textContent = '✗ Totals don\'t match. $' + Math.abs(needed).toFixed(2) + ' over the target of $' + originalTotal.toFixed(2);
+                }
+                statusIndicator.classList.remove('valid');
+                statusIndicator.classList.add('invalid');
+
+                // Disable download button
+                document.getElementById('downloadBtn').disabled = true;
+            }
+        }
+
+        function handleFillRemaining() {
+            // Calculate original total
+            const originalTotal = appState.occurrences.length > 0
+                ? appState.occurrences[appState.occurrences.length - 1].runningTotalAtThisPoint
+                : 0;
+
+            // Calculate current sum of filled values
+            let currentSum = 0;
+            let unfilledCount = 0;
+
+            appState.occurrences.forEach((occurrence) => {
+                const replacement = appState.replacements.get(occurrence.id);
+                if (replacement && replacement.newValue > 0) {
+                    currentSum += replacement.newValue;
+                } else {
+                    unfilledCount++;
+                }
+            });
+
+            if (unfilledCount === 0) {
+                alert('All values are already filled!');
+                return;
+            }
+
+            // Calculate amount to distribute
+            const remaining = originalTotal - currentSum;
+            const perItem = remaining / unfilledCount;
+
+            if (perItem <= 0) {
+                alert('No remaining amount to distribute. Total already met or exceeded.');
+                return;
+            }
+
+            // Fill unfilled items
+            appState.occurrences.forEach((occurrence) => {
+                const replacement = appState.replacements.get(occurrence.id);
+                if (!replacement || replacement.newValue === 0) {
+                    // Get the input field and fill it
+                    const valueInput = document.querySelector(`.new-value-input[data-item-id="${occurrence.id}"]`);
+                    if (valueInput) {
+                        valueInput.value = perItem.toFixed(2);
+
+                        // Update state
+                        appState.replacements.set(occurrence.id, {
+                            newName: occurrence.match,
+                            newValue: perItem,
+                            newRunningTotal: 0
+                        });
+                    }
+                }
+            });
+
+            // Recalculate and update
+            recalculateRunningTotals();
+            updateValidation();
+
+            // Show auto-fill note
+            const note = document.getElementById('autoFillNote');
+            if (note) {
+                note.textContent = '✓ Auto-filled ' + unfilledCount + ' remaining item' + (unfilledCount > 1 ? 's' : '') + ' with $' + perItem.toFixed(2) + ' per item';
+                note.classList.add('visible');
+
+                // Hide note after 5 seconds
+                setTimeout(() => {
+                    note.classList.remove('visible');
+                }, 5000);
+            }
         }
 
         function updateValidationStatus(isValid, originalTotal, newTotal) {
-            // TODO: Update validation status and totals (will be implemented in next prompt)
+            // This function is called by updateValidation() above
+            // Keeping for compatibility
         }
 
         // Helper function to escape HTML
