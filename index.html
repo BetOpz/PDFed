@@ -1351,11 +1351,16 @@
                 const originalValue = `${appState.detectedCurrency}${result.value.toFixed(2)}`;
                 const runningTotalStr = `${appState.detectedCurrency}${result.runningTotal.toFixed(2)}`;
 
+                // Get existing replacement if any
+                const existing = appState.replacements.get(result.id);
+                const newName = existing ? existing.newName : '';
+                const newValue = existing ? existing.newValue : '';
+
                 html += `
-                    <div class="mapping-row">
+                    <div class="mapping-row" data-id="${result.id}">
                         <div class="mapping-original">
-                            <div style="font-weight: 700;">${result.match}</div>
-                            <div style="font-size: 11px; margin-top: 4px;">Value: ${originalValue}</div>
+                            <div style="font-weight: 700; margin-bottom: 4px;">#${index + 1}: ${result.match}</div>
+                            <div style="font-size: 11px;">Value: ${originalValue}</div>
                             <div style="font-size: 11px;">Page: ${result.page}</div>
                             <div style="font-size: 11px;">Total: ${runningTotalStr}</div>
                         </div>
@@ -1363,19 +1368,24 @@
                         <div class="mapping-new">
                             <input
                                 type="text"
-                                class="mapping-input"
+                                class="mapping-input mapping-name-input"
                                 placeholder="New name"
+                                value="${newName}"
                                 data-id="${result.id}"
                                 style="width: 100%; padding: 6px; margin-bottom: 4px; border: 2px solid #e5e7eb; border-radius: 4px;"
                             >
                             <input
                                 type="number"
-                                class="mapping-input"
+                                class="mapping-input mapping-value-input"
                                 placeholder="0.00"
+                                value="${newValue}"
                                 step="0.01"
                                 data-id="${result.id}"
-                                style="width: 100%; padding: 6px; border: 2px solid #e5e7eb; border-radius: 4px;"
+                                style="width: 100%; padding: 6px; margin-bottom: 4px; border: 2px solid #e5e7eb; border-radius: 4px;"
                             >
+                            <div style="font-size: 11px; color: #667eea; font-weight: 600;" class="new-running-total" data-id="${result.id}">
+                                New Total: ${appState.detectedCurrency}0.00
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1383,8 +1393,11 @@
 
             mappingTable.innerHTML = html;
 
+            // Attach event listeners to inputs
+            attachReplacementListeners();
+
             // Update totals display
-            updateTotalsDisplay(results);
+            recalculateAllTotals();
         }
 
         function updateTotalsDisplay(results) {
@@ -1401,6 +1414,296 @@
 
             if (newTotalEl) {
                 newTotalEl.textContent = `${appState.detectedCurrency}${originalTotal.toFixed(2)}`;
+            }
+        }
+
+        // ============================================
+        // REPLACEMENT MAPPING HANDLERS
+        // ============================================
+
+        function attachReplacementListeners() {
+            // Attach listeners to all mapping inputs
+            const nameInputs = document.querySelectorAll('.mapping-name-input');
+            const valueInputs = document.querySelectorAll('.mapping-value-input');
+
+            nameInputs.forEach(input => {
+                input.addEventListener('input', handleReplacementChange);
+            });
+
+            valueInputs.forEach(input => {
+                input.addEventListener('input', handleReplacementChange);
+            });
+        }
+
+        function handleReplacementChange(event) {
+            const id = parseInt(event.target.dataset.id);
+            const row = document.querySelector(`.mapping-row[data-id="${id}"]`);
+
+            if (!row) return;
+
+            // Get both inputs for this row
+            const nameInput = row.querySelector('.mapping-name-input');
+            const valueInput = row.querySelector('.mapping-value-input');
+
+            const newName = nameInput.value.trim();
+            const newValue = parseFloat(valueInput.value) || 0;
+
+            // Store in replacements map
+            appState.replacements.set(id, {
+                newName: newName,
+                newValue: newValue
+            });
+
+            // Recalculate all totals
+            recalculateAllTotals();
+
+            // Update status panel
+            updateReplacementsCount();
+        }
+
+        function recalculateAllTotals() {
+            let newRunningTotal = 0;
+
+            // Iterate through search results in order
+            appState.searchResults.forEach((result, index) => {
+                const replacement = appState.replacements.get(result.id);
+
+                // Use new value if exists, otherwise original value
+                const valueToAdd = replacement && replacement.newValue
+                    ? replacement.newValue
+                    : result.value;
+
+                newRunningTotal += valueToAdd;
+
+                // Update the display for this row's new running total
+                const totalDisplay = document.querySelector(`.new-running-total[data-id="${result.id}"]`);
+                if (totalDisplay) {
+                    totalDisplay.textContent = `New Total: ${appState.detectedCurrency}${newRunningTotal.toFixed(2)}`;
+                }
+            });
+
+            // Update totals section
+            updateTotalsDisplay(appState.searchResults, newRunningTotal);
+
+            // Update validation
+            validateTotals();
+        }
+
+        function updateTotalsDisplay(results, newTotal) {
+            if (results.length === 0) return;
+
+            const originalTotal = results[results.length - 1].runningTotal;
+
+            const originalTotalEl = document.querySelector('.total-value.original');
+            const newTotalEl = document.querySelector('.total-value.new');
+
+            if (originalTotalEl) {
+                originalTotalEl.textContent = `${appState.detectedCurrency}${originalTotal.toFixed(2)}`;
+            }
+
+            if (newTotalEl) {
+                const displayTotal = newTotal !== undefined ? newTotal : originalTotal;
+                newTotalEl.textContent = `${appState.detectedCurrency}${displayTotal.toFixed(2)}`;
+            }
+        }
+
+        function validateTotals() {
+            if (appState.searchResults.length === 0) return;
+
+            const originalTotal = appState.searchResults[appState.searchResults.length - 1].runningTotal;
+
+            // Calculate new total
+            let newTotal = 0;
+            appState.searchResults.forEach(result => {
+                const replacement = appState.replacements.get(result.id);
+                const valueToAdd = replacement && replacement.newValue
+                    ? replacement.newValue
+                    : result.value;
+                newTotal += valueToAdd;
+            });
+
+            const difference = Math.abs(originalTotal - newTotal);
+            const validationBadge = document.querySelector('.validation-badge');
+
+            if (!validationBadge) return;
+
+            if (difference < 0.01) { // Allow for floating point errors
+                validationBadge.className = 'validation-badge valid';
+                validationBadge.innerHTML = '✓ Totals Match! Ready to download';
+            } else {
+                validationBadge.className = 'validation-badge invalid';
+                validationBadge.innerHTML = `✗ Totals don't match<br>Difference: ${appState.detectedCurrency}${difference.toFixed(2)}`;
+            }
+        }
+
+        function updateReplacementsCount() {
+            const statusValues = document.querySelectorAll('.status-value');
+            if (statusValues[2]) {
+                statusValues[2].textContent = appState.replacements.size;
+
+                const statusIndicators = document.querySelectorAll('.status-indicator');
+                if (appState.replacements.size > 0 && statusIndicators[2]) {
+                    statusIndicators[2].classList.remove('inactive');
+                    statusValues[2].style.color = '#15803d';
+                }
+            }
+        }
+
+        // ============================================
+        // QUICK ACTIONS
+        // ============================================
+
+        // Initialize quick action buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            // These will be attached after DOM is ready
+            setTimeout(() => {
+                const quickActionButtons = document.querySelectorAll('.btn-quick');
+                if (quickActionButtons.length >= 4) {
+                    quickActionButtons[0].addEventListener('click', handleReplaceAll);
+                    quickActionButtons[1].addEventListener('click', handleExportMapping);
+                    quickActionButtons[2].addEventListener('click', handleImportMapping);
+                    quickActionButtons[3].addEventListener('click', handleClearAll);
+                }
+            }, 100);
+        });
+
+        function handleReplaceAll() {
+            if (appState.searchResults.length === 0) {
+                alert('⚠️ No search results to replace. Please search first.');
+                return;
+            }
+
+            const newName = prompt('Enter new name for ALL occurrences:', '');
+            if (newName === null) return; // Cancelled
+
+            const newValueStr = prompt('Enter new value for ALL occurrences:', '40.00');
+            if (newValueStr === null) return; // Cancelled
+
+            const newValue = parseFloat(newValueStr);
+            if (isNaN(newValue)) {
+                alert('❌ Invalid value. Please enter a number.');
+                return;
+            }
+
+            // Apply to all results
+            appState.searchResults.forEach(result => {
+                appState.replacements.set(result.id, {
+                    newName: newName.trim(),
+                    newValue: newValue
+                });
+            });
+
+            // Refresh display
+            updateSearchResults(appState.searchResults, appState.searchResults[0].match);
+
+            console.log(`Replaced all ${appState.searchResults.length} occurrences`);
+        }
+
+        function handleExportMapping() {
+            if (appState.replacements.size === 0) {
+                alert('⚠️ No replacements to export.');
+                return;
+            }
+
+            const exportData = {
+                fileName: appState.fileName,
+                currency: appState.detectedCurrency,
+                searchTerm: appState.searchResults[0]?.match || '',
+                replacements: []
+            };
+
+            appState.replacements.forEach((replacement, id) => {
+                const result = appState.searchResults.find(r => r.id === id);
+                if (result) {
+                    exportData.replacements.push({
+                        id: id,
+                        originalText: result.match,
+                        originalValue: result.value,
+                        newText: replacement.newName,
+                        newValue: replacement.newValue,
+                        page: result.page
+                    });
+                }
+            });
+
+            const jsonStr = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `pdf-replacements-${Date.now()}.json`;
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            console.log('Mapping exported');
+        }
+
+        function handleImportMapping() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                try {
+                    const text = await file.text();
+                    const importData = JSON.parse(text);
+
+                    if (!importData.replacements || !Array.isArray(importData.replacements)) {
+                        throw new Error('Invalid mapping file format');
+                    }
+
+                    // Clear existing replacements
+                    appState.replacements.clear();
+
+                    // Apply imported mappings
+                    let importedCount = 0;
+                    importData.replacements.forEach(item => {
+                        const result = appState.searchResults.find(r =>
+                            r.id === item.id || (r.match === item.originalText && r.page === item.page)
+                        );
+
+                        if (result) {
+                            appState.replacements.set(result.id, {
+                                newName: item.newText || '',
+                                newValue: item.newValue || 0
+                            });
+                            importedCount++;
+                        }
+                    });
+
+                    // Refresh display
+                    updateSearchResults(appState.searchResults, appState.searchResults[0].match);
+
+                    alert(`✓ Imported ${importedCount} mappings successfully`);
+
+                } catch (error) {
+                    console.error('Import error:', error);
+                    alert('❌ Error importing mapping:\n\n' + error.message);
+                }
+            };
+
+            input.click();
+        }
+
+        function handleClearAll() {
+            if (appState.replacements.size === 0) {
+                return;
+            }
+
+            if (confirm('Clear all replacements? This cannot be undone.')) {
+                appState.replacements.clear();
+
+                // Refresh display
+                if (appState.searchResults.length > 0) {
+                    updateSearchResults(appState.searchResults, appState.searchResults[0].match);
+                }
+
+                console.log('All replacements cleared');
             }
         }
 
