@@ -759,6 +759,225 @@
             border: 2px solid rgba(0, 255, 0, 0.6);
         }
 
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            z-index: 20000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            max-width: 500px;
+            pointer-events: all;
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid #10b981;
+        }
+
+        .toast.success {
+            border-left-color: #10b981;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast.warning {
+            border-left-color: #f59e0b;
+        }
+
+        .toast.info {
+            border-left-color: #3b82f6;
+        }
+
+        .toast-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 700;
+            font-size: 15px;
+            margin-bottom: 4px;
+            color: #1f2937;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #9ca3af;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .toast-close:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        /* Error Modal */
+        .error-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 15000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .error-modal.active {
+            display: flex;
+        }
+
+        .error-modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .error-modal-header {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            padding: 24px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .error-modal-icon {
+            font-size: 32px;
+        }
+
+        .error-modal-title {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .error-modal-body {
+            padding: 32px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .error-modal-message {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #374151;
+            margin-bottom: 20px;
+        }
+
+        .error-modal-details {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #dc2626;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .error-modal-actions {
+            padding: 20px 32px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .btn-modal {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-modal-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-modal-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-modal-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-modal-secondary:hover {
+            background: #e5e7eb;
+        }
+
         /* Responsive Design */
         @media (max-width: 1400px) {
             .main-layout {
@@ -972,6 +1191,34 @@
                         <span>Download Modified PDF</span>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Error Modal -->
+    <div class="error-modal" id="errorModal">
+        <div class="error-modal-content">
+            <div class="error-modal-header">
+                <div class="error-modal-icon">⚠️</div>
+                <div class="error-modal-title" id="errorModalTitle">Error</div>
+            </div>
+            <div class="error-modal-body">
+                <div class="error-modal-message" id="errorModalMessage"></div>
+                <div class="error-modal-details" id="errorModalDetails" style="display: none;"></div>
+            </div>
+            <div class="error-modal-actions">
+                <button class="btn-modal btn-modal-secondary" id="copyErrorBtn" style="display: none;">
+                    📋 Copy Error Details
+                </button>
+                <button class="btn-modal btn-modal-secondary" id="downloadTextBtn" style="display: none;">
+                    📄 Download as Text
+                </button>
+                <button class="btn-modal btn-modal-primary" id="closeErrorModalBtn">
+                    Close
+                </button>
             </div>
         </div>
     </div>
@@ -2583,6 +2830,384 @@
 
             console.log(`Scrolled to change ${changeIndex + 1} on page ${pageNum}`);
         }
+
+        // ============================================
+        // TOAST NOTIFICATIONS (PROMPT 7)
+        // ============================================
+
+        /**
+         * Show a toast notification
+         * @param {string} title - Toast title
+         * @param {string} message - Toast message
+         * @param {string} type - Toast type: 'success', 'error', 'warning', 'info'
+         * @param {number} duration - Duration in ms (default 5000)
+         */
+        function showToast(title, message, type = 'info', duration = 5000) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = {
+                success: '✓',
+                error: '✗',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || icons.info}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    ${message ? `<div class="toast-message">${message}</div>` : ''}
+                </div>
+                <button class="toast-close">✕</button>
+            `;
+
+            const closeBtn = toast.querySelector('.toast-close');
+            closeBtn.addEventListener('click', () => {
+                removeToast(toast);
+            });
+
+            container.appendChild(toast);
+
+            // Auto-remove after duration
+            if (duration > 0) {
+                setTimeout(() => {
+                    removeToast(toast);
+                }, duration);
+            }
+
+            console.log(`Toast shown: ${title} - ${message}`);
+        }
+
+        /**
+         * Remove a toast with animation
+         */
+        function removeToast(toast) {
+            toast.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.parentElement.removeChild(toast);
+                }
+            }, 300);
+        }
+
+        // ============================================
+        // ERROR MODAL (PROMPT 7)
+        // ============================================
+
+        /**
+         * Initialize error modal
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const closeErrorBtn = document.getElementById('closeErrorModalBtn');
+                const copyErrorBtn = document.getElementById('copyErrorBtn');
+                const downloadTextBtn = document.getElementById('downloadTextBtn');
+
+                if (closeErrorBtn) {
+                    closeErrorBtn.addEventListener('click', closeErrorModal);
+                }
+
+                if (copyErrorBtn) {
+                    copyErrorBtn.addEventListener('click', copyErrorToClipboard);
+                }
+
+                if (downloadTextBtn) {
+                    downloadTextBtn.addEventListener('click', downloadPDFAsText);
+                }
+            }, 100);
+        });
+
+        /**
+         * Show error modal
+         * @param {string} title - Error title
+         * @param {string} message - Error message
+         * @param {string} details - Error details (optional)
+         * @param {boolean} showFallback - Show fallback download options
+         */
+        function showErrorModal(title, message, details = null, showFallback = false) {
+            const modal = document.getElementById('errorModal');
+            const titleEl = document.getElementById('errorModalTitle');
+            const messageEl = document.getElementById('errorModalMessage');
+            const detailsEl = document.getElementById('errorModalDetails');
+            const copyBtn = document.getElementById('copyErrorBtn');
+            const downloadTextBtn = document.getElementById('downloadTextBtn');
+
+            if (!modal) return;
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            if (details) {
+                detailsEl.textContent = details;
+                detailsEl.style.display = 'block';
+                copyBtn.style.display = 'inline-block';
+            } else {
+                detailsEl.style.display = 'none';
+                copyBtn.style.display = 'none';
+            }
+
+            if (showFallback) {
+                downloadTextBtn.style.display = 'inline-block';
+            } else {
+                downloadTextBtn.style.display = 'none';
+            }
+
+            modal.classList.add('active');
+
+            console.log(`Error modal shown: ${title}`);
+        }
+
+        /**
+         * Close error modal
+         */
+        function closeErrorModal() {
+            const modal = document.getElementById('errorModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
+        /**
+         * Copy error details to clipboard
+         */
+        async function copyErrorToClipboard() {
+            const detailsEl = document.getElementById('errorModalDetails');
+            if (!detailsEl) return;
+
+            const text = detailsEl.textContent;
+
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('Copied!', 'Error details copied to clipboard', 'success', 3000);
+            } catch (err) {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+
+                try {
+                    document.execCommand('copy');
+                    showToast('Copied!', 'Error details copied to clipboard', 'success', 3000);
+                } catch (e) {
+                    showToast('Copy Failed', 'Could not copy to clipboard', 'error', 3000);
+                }
+
+                document.body.removeChild(textarea);
+            }
+        }
+
+        /**
+         * Download PDF content as text (fallback)
+         */
+        function downloadPDFAsText() {
+            try {
+                if (!appState.searchResults || appState.searchResults.length === 0) {
+                    showToast('No Content', 'No search results to download', 'warning', 3000);
+                    return;
+                }
+
+                // Build text content from search results
+                let textContent = `PDF Editor - Text Export\n`;
+                textContent += `File: ${appState.fileName}\n`;
+                textContent += `Date: ${new Date().toLocaleString()}\n`;
+                textContent += `Currency: ${appState.detectedCurrency}\n`;
+                textContent += `\n${'='.repeat(60)}\n\n`;
+
+                textContent += `SEARCH RESULTS\n`;
+                textContent += `Search Term: "${appState.searchResults[0].match}"\n`;
+                textContent += `Total Occurrences: ${appState.searchResults.length}\n\n`;
+
+                appState.searchResults.forEach((result, index) => {
+                    const replacement = appState.replacements.get(result.id);
+
+                    textContent += `${index + 1}. Page ${result.page}\n`;
+                    textContent += `   Original: "${result.match}" - ${appState.detectedCurrency}${result.value.toFixed(2)}\n`;
+
+                    if (replacement) {
+                        textContent += `   Replaced: "${replacement.newName}" - ${appState.detectedCurrency}${replacement.newValue.toFixed(2)}\n`;
+                    }
+
+                    textContent += `   Running Total: ${appState.detectedCurrency}${result.runningTotal.toFixed(2)}\n`;
+                    textContent += `\n`;
+                });
+
+                // Calculate final totals
+                const originalTotal = appState.searchResults[appState.searchResults.length - 1].runningTotal;
+                let newTotal = 0;
+                appState.searchResults.forEach(result => {
+                    const replacement = appState.replacements.get(result.id);
+                    const valueToAdd = replacement && replacement.newValue ? replacement.newValue : result.value;
+                    newTotal += valueToAdd;
+                });
+
+                textContent += `\n${'='.repeat(60)}\n`;
+                textContent += `TOTALS\n`;
+                textContent += `Original Total: ${appState.detectedCurrency}${originalTotal.toFixed(2)}\n`;
+                textContent += `New Total: ${appState.detectedCurrency}${newTotal.toFixed(2)}\n`;
+                textContent += `Difference: ${appState.detectedCurrency}${Math.abs(originalTotal - newTotal).toFixed(2)}\n`;
+
+                // Create download
+                const blob = new Blob([textContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                const baseName = appState.fileName.replace('.pdf', '');
+                link.download = `${baseName}-text-export-${Date.now()}.txt`;
+
+                link.click();
+                URL.revokeObjectURL(url);
+
+                showToast('Text Downloaded', 'PDF content exported as text file', 'success', 3000);
+                closeErrorModal();
+
+                console.log('Text export downloaded');
+
+            } catch (error) {
+                console.error('Error downloading text:', error);
+                showToast('Download Failed', 'Could not export as text', 'error', 3000);
+            }
+        }
+
+        // ============================================
+        // ENHANCED DOWNLOAD WITH NOTIFICATIONS (PROMPT 7)
+        // ============================================
+
+        /**
+         * Update downloadModifiedPDF to use toast notifications
+         */
+        const originalDownloadModifiedPDF = downloadModifiedPDF;
+        downloadModifiedPDF = async function() {
+            try {
+                // Validate
+                if (!appState.pdfDocument) {
+                    showToast('Upload Required', 'Please upload a PDF first', 'warning', 3000);
+                    return;
+                }
+
+                if (appState.replacements.size === 0) {
+                    showToast('No Replacements', 'Please search and map replacements first', 'warning', 3000);
+                    return;
+                }
+
+                // Check if totals match (validation)
+                const originalTotal = appState.searchResults[appState.searchResults.length - 1].runningTotal;
+                let newTotal = 0;
+                appState.searchResults.forEach(result => {
+                    const replacement = appState.replacements.get(result.id);
+                    const valueToAdd = replacement && replacement.newValue ? replacement.newValue : result.value;
+                    newTotal += valueToAdd;
+                });
+
+                const difference = Math.abs(originalTotal - newTotal);
+
+                // Warn if totals don't match (but allow download)
+                if (difference >= 0.01) {
+                    const proceed = confirm(
+                        `⚠️ Warning: Totals Don't Match\n\n` +
+                        `Original Total: ${appState.detectedCurrency}${originalTotal.toFixed(2)}\n` +
+                        `New Total: ${appState.detectedCurrency}${newTotal.toFixed(2)}\n` +
+                        `Difference: ${appState.detectedCurrency}${difference.toFixed(2)}\n\n` +
+                        `Download anyway?`
+                    );
+
+                    if (!proceed) return;
+                }
+
+                // Show progress
+                updateStatus('Generating modified PDF...', false);
+
+                const downloadBtn = document.querySelector('.btn-download');
+                if (downloadBtn) {
+                    downloadBtn.disabled = true;
+                    downloadBtn.innerHTML = `
+                        <span style="display: inline-block; animation: spin 1s linear infinite;">⚙️</span>
+                        <span>Generating PDF...</span>
+                    `;
+                }
+
+                // Generate modified PDF
+                const modifiedPdfBytes = await generateModifiedPDF();
+
+                // Create download link
+                const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+
+                // Generate filename with timestamp
+                const baseName = appState.fileName.replace('.pdf', '');
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                const filename = `modified_${baseName}_${timestamp}.pdf`;
+                link.download = filename;
+
+                link.click();
+                URL.revokeObjectURL(url);
+
+                // Update UI
+                updateStatus('PDF downloaded successfully!', true);
+
+                // Show success toast
+                showToast(
+                    'PDF Downloaded!',
+                    `File saved as: ${filename}`,
+                    'success',
+                    5000
+                );
+
+                if (downloadBtn) {
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = `
+                        <span>✓</span>
+                        <span>Download Modified PDF</span>
+                    `;
+
+                    // Reset after 2 seconds
+                    setTimeout(() => {
+                        downloadBtn.innerHTML = `
+                            <span>📥</span>
+                            <span>Download Modified PDF</span>
+                        `;
+                    }, 2000);
+                }
+
+                console.log('PDF download complete:', filename);
+
+            } catch (error) {
+                console.error('Error downloading PDF:', error);
+
+                let errorTitle = 'PDF Generation Failed';
+                let errorMessage = 'Could not generate modified PDF.';
+                let errorDetails = error.message;
+
+                if (error.message.includes('encrypted')) {
+                    errorMessage = 'This PDF is encrypted and cannot be edited. Please use a PDF tool to remove encryption first.';
+                } else if (error.message.includes('font')) {
+                    errorMessage = 'Error with PDF fonts. The PDF may use custom fonts that are difficult to edit.';
+                }
+
+                // Show error modal with fallback option
+                showErrorModal(errorTitle, errorMessage, errorDetails, true);
+
+                // Reset button
+                const downloadBtn = document.querySelector('.btn-download');
+                if (downloadBtn) {
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = `
+                        <span>📥</span>
+                        <span>Download Modified PDF</span>
+                    `;
+                }
+            }
+        };
     </script>
 </body>
 </html>
