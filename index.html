@@ -24,6 +24,112 @@
             min-height: 100vh;
             padding: 16px;
             color: #333;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* Dark Mode Styles (Prompt 9) */
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e5e7eb;
+        }
+
+        body.dark-mode .app-container {
+            background: #1f2937;
+        }
+
+        body.dark-mode .panel {
+            background: #111827;
+            border-color: #374151;
+        }
+
+        body.dark-mode .section-title {
+            color: #e5e7eb;
+        }
+
+        body.dark-mode .search-input,
+        body.dark-mode .mapping-name-input,
+        body.dark-mode .mapping-value-input {
+            background: #374151;
+            border-color: #4b5563;
+            color: #e5e7eb;
+        }
+
+        body.dark-mode .search-input::placeholder {
+            color: #9ca3af;
+        }
+
+        body.dark-mode .btn-search,
+        body.dark-mode .btn-clear {
+            background: #374151;
+            color: #e5e7eb;
+        }
+
+        body.dark-mode .search-results-item {
+            background: #374151;
+            border-color: #4b5563;
+        }
+
+        body.dark-mode .result-match {
+            color: #e5e7eb;
+        }
+
+        body.dark-mode .result-value,
+        body.dark-mode .result-total {
+            color: #9ca3af;
+        }
+
+        body.dark-mode .totals-section {
+            background: #374151;
+            border-color: #4b5563;
+        }
+
+        body.dark-mode .progress-container {
+            background: #111827;
+            border-color: #4b5563;
+        }
+
+        body.dark-mode .progress-label,
+        body.dark-mode .progress-stats {
+            color: #9ca3af;
+        }
+
+        body.dark-mode .mapping-placeholder {
+            color: #9ca3af;
+        }
+
+        body.dark-mode .mapping-header {
+            background: #374151;
+            color: #e5e7eb;
+        }
+
+        body.dark-mode .mapping-row {
+            background: #374151;
+            border-color: #4b5563;
+        }
+
+        body.dark-mode .file-badge {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        body.dark-mode .currency-badge {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        body.dark-mode .status-card {
+            background: #374151;
+            border-color: #4b5563;
+        }
+
+        body.dark-mode .status-label {
+            color: #9ca3af;
+        }
+
+        body.dark-mode .toast {
+            background: #374151;
+            border-color: #4b5563;
+            color: #e5e7eb;
         }
 
         .app-container {
@@ -94,6 +200,28 @@
 
         .file-badge-value {
             font-weight: 700;
+        }
+
+        .header-icon-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .header-icon-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .header-icon-btn:active {
+            transform: translateY(0);
         }
 
         /* MAIN LAYOUT - 3 COLUMNS */
@@ -500,6 +628,55 @@
             border: 2px solid #e5e7eb;
             border-radius: 12px;
             padding: 20px;
+        }
+
+        /* Progress Indicator Styles (Prompt 9) */
+        .progress-container {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .progress-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .progress-percentage {
+            font-size: 14px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .progress-bar-bg {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .progress-stats {
+            font-size: 12px;
+            color: #6b7280;
+            text-align: center;
         }
 
         .totals-grid {
@@ -978,6 +1155,143 @@
             background: #e5e7eb;
         }
 
+        /* Help Modal Styles (Prompt 9) */
+        .help-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 15000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .help-modal.active {
+            display: flex;
+        }
+
+        .help-modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .help-modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .help-modal-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .help-close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .help-close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .help-modal-body {
+            padding: 32px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .help-section {
+            margin-bottom: 32px;
+        }
+
+        .help-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .help-section h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .help-list {
+            margin: 0;
+            padding-left: 24px;
+        }
+
+        .help-list li {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #4b5563;
+            margin-bottom: 10px;
+        }
+
+        .help-list li strong {
+            color: #1f2937;
+        }
+
+        .shortcut-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .shortcut-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        .shortcut-item kbd {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'Segoe UI', sans-serif;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .shortcut-item span {
+            font-size: 14px;
+            color: #374151;
+        }
+
         /* Responsive Design */
         @media (max-width: 1400px) {
             .main-layout {
@@ -1020,6 +1334,11 @@
                     <span class="file-badge-label">Pages:</span>
                     <span class="file-badge-value">0</span>
                 </div>
+                <button id="zoomOutBtn" class="header-icon-btn" title="Zoom Out (-)" aria-label="Zoom out PDF view">🔍-</button>
+                <button id="resetZoomBtn" class="header-icon-btn" title="Reset Zoom" aria-label="Reset zoom to 100%">100%</button>
+                <button id="zoomInBtn" class="header-icon-btn" title="Zoom In (+)" aria-label="Zoom in PDF view">🔍+</button>
+                <button id="helpBtn" class="header-icon-btn" title="Help & Shortcuts" aria-label="Open help and keyboard shortcuts">❓</button>
+                <button id="darkModeBtn" class="header-icon-btn" title="Toggle Dark Mode" aria-label="Toggle dark mode">🌙</button>
             </div>
         </header>
 
@@ -1036,13 +1355,13 @@
                         <div class="upload-icon">📁</div>
                         <div class="upload-text">Click or Drag PDF Here</div>
                         <div class="upload-hint">Edits happen locally in your browser</div>
-                        <input type="file" id="pdfInput" accept=".pdf" style="display: none;">
+                        <input type="file" id="pdfInput" accept=".pdf" style="display: none;" aria-label="Upload PDF file">
                     </div>
                     <div style="margin-top: 12px; padding: 12px; background: #f0f9ff; border: 2px dashed #3b82f6; border-radius: 8px; text-align: center;">
                         <div style="font-size: 12px; color: #1e40af; margin-bottom: 8px; font-weight: 600;">
                             💡 Demo Mode
                         </div>
-                        <button class="btn btn-secondary" id="loadSampleBtn" style="width: 100%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none;">
+                        <button class="btn btn-secondary" id="loadSampleBtn" style="width: 100%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none;" aria-label="Load sample PDF to test the application">
                             <span>🎯</span>
                             <span>Load Sample PDF</span>
                         </button>
@@ -1059,11 +1378,11 @@
                     </div>
                     <div class="search-section">
                         <div class="input-group">
-                            <label class="input-label">Search Term</label>
-                            <input type="text" class="input-field" placeholder="e.g., abc, item, product..." id="searchTerm">
+                            <label class="input-label" for="searchTerm">Search Term</label>
+                            <input type="text" class="input-field" placeholder="e.g., abc, item, product..." id="searchTerm" aria-label="Search term to find in PDF">
                         </div>
                         <div class="input-group">
-                            <button class="btn btn-primary" id="searchBtn">
+                            <button class="btn btn-primary" id="searchBtn" aria-label="Search for term in PDF">
                                 <span>🔎</span>
                                 <span>Find in PDF</span>
                             </button>
@@ -1176,6 +1495,20 @@
                         💰 Running Totals
                     </div>
                     <div class="totals-section">
+                        <!-- Progress Indicator -->
+                        <div class="progress-container" id="progressContainer" style="display: none;">
+                            <div class="progress-header">
+                                <span class="progress-label">Replacement Progress</span>
+                                <span class="progress-percentage" id="progressPercentage">0%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+                            </div>
+                            <div class="progress-stats">
+                                <span id="progressStats">0 of 0 items replaced</span>
+                            </div>
+                        </div>
+
                         <div class="totals-grid">
                             <div class="total-item">
                                 <div class="total-label">Original</div>
@@ -1194,11 +1527,11 @@
 
                 <!-- Download Section -->
                 <div class="download-section">
-                    <button class="btn-preview" disabled>
+                    <button class="btn-preview" disabled aria-label="Preview changes before downloading">
                         <span>👁️</span>
                         <span>Preview Changes</span>
                     </button>
-                    <button class="btn-download" disabled>
+                    <button class="btn-download" disabled aria-label="Download modified PDF">
                         <span>📥</span>
                         <span>Download Modified PDF</span>
                     </button>
@@ -1222,13 +1555,13 @@
                 <div class="error-modal-details" id="errorModalDetails" style="display: none;"></div>
             </div>
             <div class="error-modal-actions">
-                <button class="btn-modal btn-modal-secondary" id="copyErrorBtn" style="display: none;">
+                <button class="btn-modal btn-modal-secondary" id="copyErrorBtn" style="display: none;" aria-label="Copy error details to clipboard">
                     📋 Copy Error Details
                 </button>
-                <button class="btn-modal btn-modal-secondary" id="downloadTextBtn" style="display: none;">
+                <button class="btn-modal btn-modal-secondary" id="downloadTextBtn" style="display: none;" aria-label="Download PDF content as text file">
                     📄 Download as Text
                 </button>
-                <button class="btn-modal btn-modal-primary" id="closeErrorModalBtn">
+                <button class="btn-modal btn-modal-primary" id="closeErrorModalBtn" aria-label="Close error modal">
                     Close
                 </button>
             </div>
@@ -1252,7 +1585,7 @@
                     <span>Next</span>
                     <span>→</span>
                 </button>
-                <button class="btn-close-preview" id="closePreviewBtn">✕ Close</button>
+                <button class="btn-close-preview" id="closePreviewBtn" aria-label="Close preview modal">✕ Close</button>
             </div>
         </div>
         <div class="preview-body">
@@ -1269,6 +1602,77 @@
                     <span>Modified PDF</span>
                 </div>
                 <div class="preview-canvas-container" id="modifiedPreviewContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="help-modal" id="helpModal">
+        <div class="help-modal-content">
+            <div class="help-modal-header">
+                <div class="help-modal-title">
+                    <span style="font-size: 28px;">❓</span>
+                    <span>Help & Keyboard Shortcuts</span>
+                </div>
+                <button class="help-close-btn" id="closeHelpBtn" aria-label="Close help modal">✕</button>
+            </div>
+            <div class="help-modal-body">
+                <div class="help-section">
+                    <h3>🎯 Quick Start Guide</h3>
+                    <ol class="help-list">
+                        <li>Upload a PDF or click "Load Sample PDF" to try a demo</li>
+                        <li>Enter a search term (e.g., "Item" or "Product Name")</li>
+                        <li>Review detected currency values and totals</li>
+                        <li>Create replacement mappings with new names/values</li>
+                        <li>Preview changes to verify totals match</li>
+                        <li>Download your modified PDF</li>
+                    </ol>
+                </div>
+
+                <div class="help-section">
+                    <h3>⌨️ Keyboard Shortcuts</h3>
+                    <div class="shortcut-grid">
+                        <div class="shortcut-item">
+                            <kbd>Ctrl + D</kbd>
+                            <span>Download modified PDF</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>Ctrl + P</kbd>
+                            <span>Preview changes</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>Ctrl + Z</kbd>
+                            <span>Clear all replacements</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>ESC</kbd>
+                            <span>Close modals</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>Enter</kbd>
+                            <span>Execute search (in search field)</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>+</kbd>
+                            <span>Zoom in PDF</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>-</kbd>
+                            <span>Zoom out PDF</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h3>💡 Tips & Tricks</h3>
+                    <ul class="help-list">
+                        <li><strong>Total Validation:</strong> The app ensures original and new totals match before downloading</li>
+                        <li><strong>Live Preview:</strong> Use the preview to verify all changes before committing</li>
+                        <li><strong>Currency Detection:</strong> The app auto-detects currency symbols (£, $, €, ¥)</li>
+                        <li><strong>Demo Mode:</strong> Click "Load Sample PDF" to test without uploading files</li>
+                        <li><strong>Zoom Controls:</strong> Use zoom buttons or keyboard shortcuts for better visibility</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -1970,6 +2374,9 @@
 
             // Update validation
             validateTotals();
+
+            // Update progress indicator (Prompt 9)
+            updateProgressIndicator();
         }
 
         function updateTotalsDisplay(results, newTotal) {
@@ -2029,6 +2436,42 @@
                     statusIndicators[2].classList.remove('inactive');
                     statusValues[2].style.color = '#15803d';
                 }
+            }
+        }
+
+        /**
+         * Update progress indicator (Prompt 9)
+         */
+        function updateProgressIndicator() {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressPercentage = document.getElementById('progressPercentage');
+            const progressBarFill = document.getElementById('progressBarFill');
+            const progressStats = document.getElementById('progressStats');
+
+            if (!progressContainer) return;
+
+            const totalItems = appState.searchResults.length;
+            const replacedItems = appState.replacements.size;
+
+            // Show/hide progress container
+            if (totalItems > 0) {
+                progressContainer.style.display = 'block';
+
+                // Calculate percentage
+                const percentage = totalItems > 0 ? Math.round((replacedItems / totalItems) * 100) : 0;
+
+                // Update display
+                if (progressPercentage) {
+                    progressPercentage.textContent = `${percentage}%`;
+                }
+                if (progressBarFill) {
+                    progressBarFill.style.width = `${percentage}%`;
+                }
+                if (progressStats) {
+                    progressStats.textContent = `${replacedItems} of ${totalItems} items replaced`;
+                }
+            } else {
+                progressContainer.style.display = 'none';
             }
         }
 
@@ -2844,6 +3287,183 @@
         }
 
         // ============================================
+        // KEYBOARD SHORTCUTS (PROMPT 9)
+        // ============================================
+
+        /**
+         * Initialize keyboard shortcuts
+         */
+        document.addEventListener('keydown', function(event) {
+            // Ctrl+D: Download PDF
+            if (event.ctrlKey && event.key === 'd') {
+                event.preventDefault();
+                const downloadBtn = document.querySelector('.btn-download');
+                if (downloadBtn && !downloadBtn.disabled) {
+                    downloadModifiedPDF();
+                    showToast('Keyboard Shortcut', 'Ctrl+D: Download triggered', 'info', 2000);
+                }
+            }
+
+            // Ctrl+P: Preview changes
+            if (event.ctrlKey && event.key === 'p') {
+                event.preventDefault();
+                const previewBtn = document.querySelector('.btn-preview');
+                if (previewBtn && !previewBtn.disabled) {
+                    openPreview();
+                    showToast('Keyboard Shortcut', 'Ctrl+P: Preview triggered', 'info', 2000);
+                }
+            }
+
+            // Ctrl+Z: Clear all replacements
+            if (event.ctrlKey && event.key === 'z') {
+                event.preventDefault();
+                if (appState.replacements.size > 0) {
+                    handleClearAll();
+                    showToast('Keyboard Shortcut', 'Ctrl+Z: Clear all triggered', 'info', 2000);
+                }
+            }
+
+            // ESC: Close preview modal, error modal, or help modal
+            if (event.key === 'Escape') {
+                const previewModal = document.getElementById('previewModal');
+                const errorModal = document.getElementById('errorModal');
+                const helpModal = document.getElementById('helpModal');
+
+                if (previewModal && previewModal.classList.contains('active')) {
+                    closePreview();
+                } else if (errorModal && errorModal.classList.contains('active')) {
+                    closeErrorModal();
+                } else if (helpModal && helpModal.classList.contains('active')) {
+                    closeHelpModal();
+                }
+            }
+
+            // Enter in search field: trigger search
+            if (event.key === 'Enter' && event.target.id === 'searchTerm') {
+                event.preventDefault();
+                handleSearch();
+            }
+        });
+
+        console.log('Keyboard shortcuts initialized: Ctrl+D (Download), Ctrl+P (Preview), Ctrl+Z (Clear), ESC (Close)');
+
+        // ============================================
+        // PDF ZOOM CONTROLS (PROMPT 9)
+        // ============================================
+
+        /**
+         * Zoom in PDF
+         */
+        function zoomIn() {
+            if (appState.zoom < 3.0) {
+                appState.zoom += 0.25;
+                renderAllPages();
+                showToast('Zoom', `Zoomed to ${Math.round(appState.zoom * 100)}%`, 'info', 1500);
+            }
+        }
+
+        /**
+         * Zoom out PDF
+         */
+        function zoomOut() {
+            if (appState.zoom > 0.5) {
+                appState.zoom -= 0.25;
+                renderAllPages();
+                showToast('Zoom', `Zoomed to ${Math.round(appState.zoom * 100)}%`, 'info', 1500);
+            }
+        }
+
+        /**
+         * Reset zoom
+         */
+        function resetZoom() {
+            appState.zoom = 1.5;
+            renderAllPages();
+            showToast('Zoom', 'Reset to 150%', 'info', 1500);
+        }
+
+        /**
+         * Initialize zoom controls
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const zoomInBtn = document.getElementById('zoomInBtn');
+                const zoomOutBtn = document.getElementById('zoomOutBtn');
+                const resetZoomBtn = document.getElementById('resetZoomBtn');
+                const helpBtn = document.getElementById('helpBtn');
+
+                if (zoomInBtn) {
+                    zoomInBtn.addEventListener('click', zoomIn);
+                }
+                if (zoomOutBtn) {
+                    zoomOutBtn.addEventListener('click', zoomOut);
+                }
+                if (resetZoomBtn) {
+                    resetZoomBtn.addEventListener('click', resetZoom);
+                }
+                if (helpBtn) {
+                    helpBtn.addEventListener('click', showHelpModal);
+                }
+
+                console.log('Zoom controls and help button initialized');
+            }, 100);
+        });
+
+        // ============================================
+        // DARK MODE TOGGLE (PROMPT 9)
+        // ============================================
+
+        /**
+         * Toggle dark mode
+         */
+        function toggleDarkMode() {
+            const body = document.body;
+            const darkModeBtn = document.getElementById('darkModeBtn');
+
+            body.classList.toggle('dark-mode');
+
+            // Update button text
+            if (body.classList.contains('dark-mode')) {
+                if (darkModeBtn) darkModeBtn.textContent = '☀️';
+                localStorage.setItem('darkMode', 'enabled');
+                showToast('Dark Mode', 'Dark mode enabled', 'info', 2000);
+            } else {
+                if (darkModeBtn) darkModeBtn.textContent = '🌙';
+                localStorage.setItem('darkMode', 'disabled');
+                showToast('Light Mode', 'Light mode enabled', 'info', 2000);
+            }
+        }
+
+        /**
+         * Initialize dark mode from localStorage
+         */
+        function initDarkMode() {
+            const darkModePreference = localStorage.getItem('darkMode');
+            const darkModeBtn = document.getElementById('darkModeBtn');
+
+            if (darkModePreference === 'enabled') {
+                document.body.classList.add('dark-mode');
+                if (darkModeBtn) darkModeBtn.textContent = '☀️';
+            }
+        }
+
+        /**
+         * Initialize dark mode button
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize dark mode from localStorage
+            initDarkMode();
+
+            setTimeout(() => {
+                const darkModeBtn = document.getElementById('darkModeBtn');
+                if (darkModeBtn) {
+                    darkModeBtn.addEventListener('click', toggleDarkMode);
+                    console.log('Dark mode button initialized');
+                }
+            }, 100);
+        });
+
+        // ============================================
         // DEMO MODE & SAMPLE DATA (PROMPT 8)
         // ============================================
 
@@ -3321,6 +3941,47 @@
                 modal.classList.remove('active');
             }
         }
+
+        // ============================================
+        // HELP MODAL FUNCTIONS (PROMPT 9)
+        // ============================================
+
+        /**
+         * Show help modal
+         */
+        function showHelpModal() {
+            const modal = document.getElementById('helpModal');
+            if (modal) {
+                modal.classList.add('active');
+                console.log('Help modal opened');
+            }
+        }
+
+        /**
+         * Close help modal
+         */
+        function closeHelpModal() {
+            const modal = document.getElementById('helpModal');
+            if (modal) {
+                modal.classList.remove('active');
+                console.log('Help modal closed');
+            }
+        }
+
+        /**
+         * Initialize help modal
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const closeHelpBtn = document.getElementById('closeHelpBtn');
+                if (closeHelpBtn) {
+                    closeHelpBtn.addEventListener('click', closeHelpModal);
+                }
+
+                // Also close help modal with ESC (already handled in keyboard shortcuts)
+                console.log('Help modal initialized');
+            }, 100);
+        });
 
         /**
          * Copy error details to clipboard
