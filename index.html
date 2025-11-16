@@ -1459,6 +1459,9 @@
 
             // Update status panel
             updateReplacementsCount();
+
+            // Enable download button
+            updateDownloadButton();
         }
 
         function recalculateAllTotals() {
@@ -1596,6 +1599,9 @@
             // Refresh display
             updateSearchResults(appState.searchResults, appState.searchResults[0].match);
 
+            // Enable download button
+            updateDownloadButton();
+
             console.log(`Replaced all ${appState.searchResults.length} occurrences`);
         }
 
@@ -1679,6 +1685,9 @@
                     // Refresh display
                     updateSearchResults(appState.searchResults, appState.searchResults[0].match);
 
+                    // Enable download button
+                    updateDownloadButton();
+
                     alert(`✓ Imported ${importedCount} mappings successfully`);
 
                 } catch (error) {
@@ -1703,21 +1712,384 @@
                     updateSearchResults(appState.searchResults, appState.searchResults[0].match);
                 }
 
+                // Disable download button
+                const downloadBtn = document.querySelector('.btn-download');
+                if (downloadBtn) {
+                    downloadBtn.disabled = true;
+                }
+
                 console.log('All replacements cleared');
             }
         }
 
         // ============================================
-        // PLACEHOLDER FUNCTIONS (FOR FUTURE PROMPTS)
+        // PDF MODIFICATION ENGINE (PROMPT 5)
         // ============================================
 
-        function replaceInPDF() {
-            // To be implemented in next prompt
+        /**
+         * Main function to generate modified PDF with all replacements applied
+         */
+        async function generateModifiedPDF() {
+            try {
+                console.log('Starting PDF modification...');
+
+                // Validate we have everything needed
+                if (!appState.pdfBytes) {
+                    throw new Error('No PDF loaded');
+                }
+
+                if (appState.replacements.size === 0) {
+                    throw new Error('No replacements defined');
+                }
+
+                // Load PDF with pdf-lib
+                const { PDFDocument, rgb } = PDFLib;
+                const pdfDoc = await PDFDocument.load(appState.pdfBytes);
+
+                console.log('PDF loaded with pdf-lib');
+
+                // Check if PDF is encrypted
+                if (pdfDoc.isEncrypted) {
+                    throw new Error('This PDF is encrypted and cannot be edited. Please remove encryption first.');
+                }
+
+                // Apply all replacements
+                await applyReplacementsToPDF(pdfDoc);
+
+                console.log('Replacements applied');
+
+                // Save modified PDF
+                const modifiedPdfBytes = await pdfDoc.save();
+
+                console.log('Modified PDF saved');
+
+                return modifiedPdfBytes;
+
+            } catch (error) {
+                console.error('Error generating modified PDF:', error);
+                throw error;
+            }
         }
 
-        function downloadModifiedPDF() {
-            // To be implemented in next prompt
+        /**
+         * Apply all text and value replacements to the PDF
+         */
+        async function applyReplacementsToPDF(pdfDoc) {
+            const { rgb } = PDFLib;
+
+            // Group replacements by page for efficiency
+            const replacementsByPage = new Map();
+
+            appState.searchResults.forEach(result => {
+                const replacement = appState.replacements.get(result.id);
+                if (!replacement) return;
+
+                const pageNum = result.page - 1; // pdf-lib uses 0-based indexing
+
+                if (!replacementsByPage.has(pageNum)) {
+                    replacementsByPage.set(pageNum, []);
+                }
+
+                replacementsByPage.get(pageNum).push({
+                    result: result,
+                    replacement: replacement
+                });
+            });
+
+            console.log(`Processing replacements on ${replacementsByPage.size} pages`);
+
+            // Process each page
+            for (const [pageIndex, pageReplacements] of replacementsByPage) {
+                const page = pdfDoc.getPage(pageIndex);
+
+                // Get page dimensions
+                const { width, height } = page.getSize();
+
+                console.log(`Processing page ${pageIndex + 1} with ${pageReplacements.length} replacements`);
+
+                // For each replacement on this page
+                for (const { result, replacement } of pageReplacements) {
+                    // Find and replace text in the PDF
+                    await replaceTextInPage(page, result, replacement, width, height);
+                }
+            }
+
+            // Update running totals
+            await updateRunningTotalsInPDF(pdfDoc, replacementsByPage);
         }
+
+        /**
+         * Replace text in a specific page
+         * Note: pdf-lib doesn't have built-in text search/replace, so we use a workaround
+         */
+        async function replaceTextInPage(page, result, replacement, pageWidth, pageHeight) {
+            try {
+                const { rgb } = PDFLib;
+
+                // Get the position from our search results
+                const x = result.position.x;
+                const y = pageHeight - result.position.y; // PDF.js and pdf-lib have different Y origins
+
+                // Build replacement text
+                let replacementText = '';
+
+                if (replacement.newName && replacement.newName.trim() !== '') {
+                    replacementText = replacement.newName;
+                }
+
+                if (replacement.newValue && replacement.newValue > 0) {
+                    const valueStr = `${appState.detectedCurrency}${replacement.newValue.toFixed(2)}`;
+                    replacementText = replacementText
+                        ? `${replacementText} ${valueStr}`
+                        : valueStr;
+                }
+
+                // Draw white rectangle to cover original text
+                // This is a workaround since pdf-lib can't directly delete text
+                page.drawRectangle({
+                    x: x - 5,
+                    y: y - 12,
+                    width: 150,
+                    height: 16,
+                    color: rgb(1, 1, 1),
+                    borderWidth: 0
+                });
+
+                // Draw new text
+                if (replacementText) {
+                    page.drawText(replacementText, {
+                        x: x,
+                        y: y,
+                        size: 10,
+                        color: rgb(0, 0, 0)
+                    });
+                }
+
+                console.log(`Replaced "${result.match}" with "${replacementText}" at (${x.toFixed(1)}, ${y.toFixed(1)})`);
+
+            } catch (error) {
+                console.error('Error replacing text in page:', error);
+                // Don't throw - continue with other replacements
+            }
+        }
+
+        /**
+         * Update running total fields in the PDF
+         */
+        async function updateRunningTotalsInPDF(pdfDoc, replacementsByPage) {
+            try {
+                const { rgb } = PDFLib;
+
+                // Calculate what the new running totals should be
+                const newRunningTotals = [];
+                let cumulative = 0;
+
+                appState.searchResults.forEach(result => {
+                    const replacement = appState.replacements.get(result.id);
+                    const value = replacement && replacement.newValue
+                        ? replacement.newValue
+                        : result.value;
+
+                    cumulative += value;
+
+                    newRunningTotals.push({
+                        id: result.id,
+                        page: result.page,
+                        position: result.position,
+                        originalTotal: result.runningTotal,
+                        newTotal: cumulative
+                    });
+                });
+
+                // Update each running total in the PDF
+                for (const totalInfo of newRunningTotals) {
+                    // Only update if the total changed
+                    if (Math.abs(totalInfo.originalTotal - totalInfo.newTotal) >= 0.01) {
+                        const page = pdfDoc.getPage(totalInfo.page - 1);
+                        const { width, height } = page.getSize();
+
+                        // Estimate position of running total (usually to the right of the item)
+                        const x = totalInfo.position.x + 100;
+                        const y = height - totalInfo.position.y;
+
+                        // Cover old total with white rectangle
+                        page.drawRectangle({
+                            x: x - 5,
+                            y: y - 12,
+                            width: 80,
+                            height: 16,
+                            color: rgb(1, 1, 1),
+                            borderWidth: 0
+                        });
+
+                        // Draw new total
+                        const totalStr = `${appState.detectedCurrency}${totalInfo.newTotal.toFixed(2)}`;
+                        page.drawText(totalStr, {
+                            x: x,
+                            y: y,
+                            size: 10,
+                            color: rgb(0, 0, 0)
+                        });
+
+                        console.log(`Updated running total on page ${totalInfo.page}: ${totalStr}`);
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error updating running totals:', error);
+                // Don't throw - running totals are optional
+            }
+        }
+
+        /**
+         * Download the modified PDF
+         */
+        async function downloadModifiedPDF() {
+            try {
+                // Validate
+                if (!appState.pdfDocument) {
+                    alert('⚠️ Please upload a PDF first.');
+                    return;
+                }
+
+                if (appState.replacements.size === 0) {
+                    alert('⚠️ No replacements defined. Please search and map replacements first.');
+                    return;
+                }
+
+                // Check if totals match (validation)
+                const originalTotal = appState.searchResults[appState.searchResults.length - 1].runningTotal;
+                let newTotal = 0;
+                appState.searchResults.forEach(result => {
+                    const replacement = appState.replacements.get(result.id);
+                    const valueToAdd = replacement && replacement.newValue ? replacement.newValue : result.value;
+                    newTotal += valueToAdd;
+                });
+
+                const difference = Math.abs(originalTotal - newTotal);
+
+                // Warn if totals don't match (but allow download)
+                if (difference >= 0.01) {
+                    const proceed = confirm(
+                        `⚠️ Warning: Totals Don't Match\n\n` +
+                        `Original Total: ${appState.detectedCurrency}${originalTotal.toFixed(2)}\n` +
+                        `New Total: ${appState.detectedCurrency}${newTotal.toFixed(2)}\n` +
+                        `Difference: ${appState.detectedCurrency}${difference.toFixed(2)}\n\n` +
+                        `Download anyway?`
+                    );
+
+                    if (!proceed) return;
+                }
+
+                // Show progress
+                updateStatus('Generating modified PDF...', false);
+
+                const downloadBtn = document.querySelector('.btn-download');
+                if (downloadBtn) {
+                    downloadBtn.disabled = true;
+                    downloadBtn.innerHTML = `
+                        <span style="display: inline-block; animation: spin 1s linear infinite;">⚙️</span>
+                        <span>Generating PDF...</span>
+                    `;
+                }
+
+                // Generate modified PDF
+                const modifiedPdfBytes = await generateModifiedPDF();
+
+                // Create download link
+                const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+
+                // Generate filename
+                const baseName = appState.fileName.replace('.pdf', '');
+                link.download = `${baseName}-modified-${Date.now()}.pdf`;
+
+                link.click();
+                URL.revokeObjectURL(url);
+
+                // Update UI
+                updateStatus('PDF downloaded successfully!', true);
+
+                if (downloadBtn) {
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = `
+                        <span>✓</span>
+                        <span>Download Modified PDF</span>
+                    `;
+
+                    // Reset after 2 seconds
+                    setTimeout(() => {
+                        downloadBtn.innerHTML = `
+                            <span>⬇️</span>
+                            <span>Download Modified PDF</span>
+                        `;
+                    }, 2000);
+                }
+
+                console.log('PDF download complete');
+
+            } catch (error) {
+                console.error('Error downloading PDF:', error);
+
+                let errorMessage = 'Failed to generate modified PDF.';
+
+                if (error.message.includes('encrypted')) {
+                    errorMessage = 'This PDF is encrypted and cannot be edited.\n\nPlease use a PDF tool to remove encryption first.';
+                } else if (error.message.includes('font')) {
+                    errorMessage = 'Error with PDF fonts.\n\nThe PDF may use custom fonts that are difficult to edit.';
+                } else {
+                    errorMessage = 'Error generating PDF:\n\n' + error.message;
+                }
+
+                alert('❌ ' + errorMessage);
+                updateStatus('PDF generation failed', false);
+
+                // Reset button
+                const downloadBtn = document.querySelector('.btn-download');
+                if (downloadBtn) {
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = `
+                        <span>⬇️</span>
+                        <span>Download Modified PDF</span>
+                    `;
+                }
+            }
+        }
+
+        // ============================================
+        // DOWNLOAD BUTTON INITIALIZATION
+        // ============================================
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const downloadBtn = document.querySelector('.btn-download');
+                if (downloadBtn) {
+                    downloadBtn.addEventListener('click', downloadModifiedPDF);
+                    console.log('Download button initialized');
+                }
+            }, 100);
+        });
+
+        // Enable download button when replacements are made
+        function updateDownloadButton() {
+            const downloadBtn = document.querySelector('.btn-download');
+            if (downloadBtn && appState.replacements.size > 0) {
+                downloadBtn.disabled = false;
+            }
+        }
+
+        // Add CSS animation for spinner
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
