@@ -804,12 +804,14 @@
         // GLOBAL STATE
         // ============================================
         const appState = {
-            pdfDocument: null,
-            pdfBytes: null,
+            pdfDocument: null,        // PDF.js document object
+            pdfPages: [],             // Array of PDF.js page objects
+            pdfBytes: null,           // Original PDF file bytes (ArrayBuffer)
+            originalPdfBytes: null,   // Backup of original bytes
             fileName: '',
             currentPage: 1,
             totalPages: 0,
-            zoom: 1.0,
+            zoom: 1.5,                // Default zoom for better readability
             searchResults: [],
             replacements: new Map()
         };
@@ -834,34 +836,280 @@
             const uploadZone = document.getElementById('uploadZone');
             const pdfInput = document.getElementById('pdfInput');
 
+            // Click to upload
             uploadZone.addEventListener('click', () => {
                 pdfInput.click();
             });
 
-            // Placeholder event listeners (functionality to be implemented)
+            // File input change
             pdfInput.addEventListener('change', handleFileUpload);
+
+            // Drag and drop support
+            uploadZone.addEventListener('dragover', handleDragOver);
+            uploadZone.addEventListener('dragleave', handleDragLeave);
+            uploadZone.addEventListener('drop', handleDrop);
+
+            // Prevent default drag behavior on whole document
+            document.addEventListener('dragover', (e) => e.preventDefault());
+            document.addEventListener('drop', (e) => e.preventDefault());
+
+            // Search button (placeholder for now)
             document.getElementById('searchBtn').addEventListener('click', handleSearch);
 
             console.log('Event listeners attached');
         });
 
         // ============================================
-        // PLACEHOLDER FUNCTIONS
+        // DRAG AND DROP HANDLERS
         // ============================================
 
-        function handleFileUpload(event) {
-            console.log('File upload triggered (not implemented yet)');
-            // To be implemented in next prompt
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.style.borderColor = '#764ba2';
+            event.currentTarget.style.background = 'linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%)';
         }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.style.borderColor = '#667eea';
+            event.currentTarget.style.background = 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf4 100%)';
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            // Reset styles
+            event.currentTarget.style.borderColor = '#667eea';
+            event.currentTarget.style.background = 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf4 100%)';
+
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                processFile(file);
+            }
+        }
+
+        // ============================================
+        // FILE UPLOAD HANDLER
+        // ============================================
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                await processFile(file);
+            }
+        }
+
+        async function processFile(file) {
+            console.log('Processing file:', file.name);
+
+            // Validate file type
+            if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
+                alert('❌ Error: Please select a valid PDF file.\n\nFile type: ' + (file.type || 'unknown'));
+                return;
+            }
+
+            // Warn if file is very large (> 50MB)
+            const fileSizeMB = file.size / (1024 * 1024);
+            if (fileSizeMB > 50) {
+                const proceed = confirm(
+                    `⚠️ Warning: Large PDF File\n\n` +
+                    `File size: ${fileSizeMB.toFixed(2)} MB\n\n` +
+                    `Large files may take longer to process.\n\n` +
+                    `Continue?`
+                );
+                if (!proceed) return;
+            }
+
+            try {
+                // Update status
+                updateStatus('Loading PDF...', false);
+
+                // Read file as ArrayBuffer
+                const arrayBuffer = await file.arrayBuffer();
+
+                // Validate PDF header
+                const header = new Uint8Array(arrayBuffer.slice(0, 5));
+                const headerString = String.fromCharCode.apply(null, header);
+                if (!headerString.includes('%PDF')) {
+                    throw new Error('Invalid PDF file - missing PDF header signature');
+                }
+
+                // Store original bytes
+                appState.pdfBytes = arrayBuffer;
+                appState.originalPdfBytes = arrayBuffer.slice(0);
+                appState.fileName = file.name;
+
+                // Load PDF with PDF.js
+                await loadPDF(arrayBuffer);
+
+                // Update UI
+                updateFileInfo(file.name, appState.totalPages, fileSizeMB);
+                updateStatus('PDF loaded successfully!', true);
+
+            } catch (error) {
+                console.error('Error processing PDF:', error);
+
+                let errorMessage = 'Failed to load PDF file.';
+
+                if (error.message.includes('Invalid PDF') || error.message.includes('header')) {
+                    errorMessage = 'This file is not a valid PDF.\n\nThe file may be corrupted or use an unsupported format.';
+                } else if (error.message.includes('password') || error.message.includes('encrypted')) {
+                    errorMessage = 'This PDF is password-protected.\n\nPlease remove password protection and try again.';
+                } else {
+                    errorMessage = 'Error loading PDF:\n\n' + error.message;
+                }
+
+                alert('❌ ' + errorMessage);
+                updateStatus('Failed to load PDF', false);
+            }
+        }
+
+        // ============================================
+        // PDF LOADING WITH PDF.JS
+        // ============================================
+
+        async function loadPDF(arrayBuffer) {
+            try {
+                // Load PDF document
+                const loadingTask = pdfjsLib.getDocument({
+                    data: arrayBuffer,
+                    verbosity: 0
+                });
+
+                appState.pdfDocument = await loadingTask.promise;
+                appState.totalPages = appState.pdfDocument.numPages;
+                appState.currentPage = 1;
+
+                console.log('PDF loaded:', {
+                    pages: appState.totalPages,
+                    fileName: appState.fileName
+                });
+
+                // Load all pages
+                appState.pdfPages = [];
+                for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+                    const page = await appState.pdfDocument.getPage(pageNum);
+                    appState.pdfPages.push(page);
+                }
+
+                // Render all pages
+                await renderAllPages();
+
+            } catch (error) {
+                console.error('Error in loadPDF:', error);
+                throw error;
+            }
+        }
+
+        // ============================================
+        // PDF RENDERING
+        // ============================================
+
+        async function renderAllPages() {
+            const canvasContainer = document.querySelector('.pdf-canvas-container');
+            const placeholder = document.querySelector('.pdf-placeholder');
+            const canvas = document.getElementById('pdfCanvas');
+
+            // Hide placeholder, show canvas container
+            if (placeholder) placeholder.style.display = 'none';
+            canvas.style.display = 'block';
+
+            // Clear previous content
+            canvasContainer.innerHTML = '';
+
+            // Create container for all pages
+            const pagesContainer = document.createElement('div');
+            pagesContainer.style.display = 'flex';
+            pagesContainer.style.flexDirection = 'column';
+            pagesContainer.style.alignItems = 'center';
+            pagesContainer.style.gap = '20px';
+            pagesContainer.style.padding = '20px';
+
+            // Render each page
+            for (let i = 0; i < appState.pdfPages.length; i++) {
+                const page = appState.pdfPages[i];
+                const pageCanvas = await renderPage(page, i + 1);
+                pagesContainer.appendChild(pageCanvas);
+            }
+
+            canvasContainer.appendChild(pagesContainer);
+            console.log('All pages rendered');
+        }
+
+        async function renderPage(page, pageNumber) {
+            const viewport = page.getViewport({ scale: appState.zoom });
+
+            // Create canvas for this page
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            canvas.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.2)';
+            canvas.style.borderRadius = '4px';
+            canvas.style.background = 'white';
+            canvas.dataset.pageNumber = pageNumber;
+
+            // Render PDF page to canvas
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+
+            await page.render(renderContext).promise;
+
+            return canvas;
+        }
+
+        // ============================================
+        // UI UPDATE FUNCTIONS
+        // ============================================
+
+        function updateFileInfo(fileName, pageCount, fileSizeMB) {
+            // Update header
+            const fileNameBadge = document.querySelector('.file-badge-value');
+            if (fileNameBadge) {
+                fileNameBadge.textContent = fileName.length > 20
+                    ? fileName.substring(0, 20) + '...'
+                    : fileName;
+            }
+
+            const pagesBadge = document.querySelectorAll('.file-badge-value')[1];
+            if (pagesBadge) {
+                pagesBadge.textContent = pageCount;
+            }
+
+            // Update status panel
+            const statusIndicators = document.querySelectorAll('.status-indicator');
+            const statusValues = document.querySelectorAll('.status-value');
+
+            if (statusIndicators[0]) statusIndicators[0].classList.remove('inactive');
+            if (statusValues[0]) statusValues[0].textContent = 'Yes';
+            if (statusValues[0]) statusValues[0].style.color = '#15803d';
+
+            console.log('File info updated');
+        }
+
+        function updateStatus(message, success) {
+            console.log('Status:', message);
+            // Can be enhanced with a status bar or toast notification
+        }
+
+        // ============================================
+        // PLACEHOLDER FUNCTIONS (FOR FUTURE PROMPTS)
+        // ============================================
 
         function handleSearch() {
-            console.log('Search triggered (not implemented yet)');
+            console.log('Search triggered (to be implemented in next prompt)');
+            if (!appState.pdfDocument) {
+                alert('Please upload a PDF first.');
+                return;
+            }
             // To be implemented in next prompt
-        }
-
-        // Additional placeholder functions for future implementation
-        function renderPDFPage() {
-            // To be implemented
         }
 
         function searchInPDF() {
