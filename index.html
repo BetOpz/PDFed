@@ -1038,6 +1038,18 @@
                         <div class="upload-hint">Edits happen locally in your browser</div>
                         <input type="file" id="pdfInput" accept=".pdf" style="display: none;">
                     </div>
+                    <div style="margin-top: 12px; padding: 12px; background: #f0f9ff; border: 2px dashed #3b82f6; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 12px; color: #1e40af; margin-bottom: 8px; font-weight: 600;">
+                            💡 Demo Mode
+                        </div>
+                        <button class="btn btn-secondary" id="loadSampleBtn" style="width: 100%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none;">
+                            <span>🎯</span>
+                            <span>Load Sample PDF</span>
+                        </button>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
+                            Test without uploading your own file
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Search Section -->
@@ -2829,6 +2841,345 @@
             }
 
             console.log(`Scrolled to change ${changeIndex + 1} on page ${pageNum}`);
+        }
+
+        // ============================================
+        // DEMO MODE & SAMPLE DATA (PROMPT 8)
+        // ============================================
+
+        /**
+         * Initialize demo mode button
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const loadSampleBtn = document.getElementById('loadSampleBtn');
+                if (loadSampleBtn) {
+                    loadSampleBtn.addEventListener('click', loadSamplePDF);
+                    console.log('Demo mode button initialized');
+                }
+            }, 100);
+        });
+
+        /**
+         * Generate and load a sample invoice PDF
+         */
+        async function loadSamplePDF() {
+            try {
+                const loadSampleBtn = document.getElementById('loadSampleBtn');
+                if (loadSampleBtn) {
+                    loadSampleBtn.disabled = true;
+                    loadSampleBtn.innerHTML = `
+                        <span style="display: inline-block; animation: spin 1s linear infinite;">⚙️</span>
+                        <span>Generating Sample...</span>
+                    `;
+                }
+
+                showToast('Generating Sample', 'Creating demo invoice PDF...', 'info', 2000);
+
+                // Generate sample PDF
+                console.log('Generating sample PDF...');
+                const samplePdfBytes = await generateSampleInvoicePDF();
+
+                // Load the sample PDF
+                console.log('Loading sample PDF...');
+                appState.pdfBytes = samplePdfBytes;
+                appState.originalPdfBytes = samplePdfBytes.slice(0);
+                appState.fileName = 'Sample_Invoice.pdf';
+
+                // Load with PDF.js
+                await loadPDF(samplePdfBytes);
+
+                // Update UI
+                const fileSizeMB = samplePdfBytes.byteLength / (1024 * 1024);
+                updateFileInfo('Sample_Invoice.pdf (Demo)', appState.totalPages, fileSizeMB);
+
+                // Auto-trigger search for "abc"
+                console.log('Auto-searching for "abc"...');
+                document.getElementById('searchTerm').value = 'abc';
+
+                // Small delay to ensure PDF is fully loaded
+                setTimeout(() => {
+                    handleSearch();
+                    showToast('Demo Loaded!', 'Sample invoice with 25 items ready for editing', 'success', 4000);
+                }, 500);
+
+                // Reset button
+                if (loadSampleBtn) {
+                    loadSampleBtn.disabled = false;
+                    loadSampleBtn.innerHTML = `
+                        <span>🎯</span>
+                        <span>Load Sample PDF</span>
+                    `;
+                }
+
+                console.log('Sample PDF loaded successfully');
+
+            } catch (error) {
+                console.error('Error loading sample PDF:', error);
+                showToast('Demo Failed', 'Could not generate sample PDF: ' + error.message, 'error', 5000);
+
+                // Reset button
+                const loadSampleBtn = document.getElementById('loadSampleBtn');
+                if (loadSampleBtn) {
+                    loadSampleBtn.disabled = false;
+                    loadSampleBtn.innerHTML = `
+                        <span>🎯</span>
+                        <span>Load Sample PDF</span>
+                    `;
+                }
+            }
+        }
+
+        /**
+         * Generate a sample invoice PDF using pdf-lib
+         * Creates an invoice with 25 line items, each "abc" @ £40.00
+         */
+        async function generateSampleInvoicePDF() {
+            const { PDFDocument, rgb, StandardFonts } = PDFLib;
+
+            // Create a new PDF document
+            const pdfDoc = await PDFDocument.create();
+
+            // Embed standard font
+            const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+            // Add a page
+            const page = pdfDoc.addPage([595, 842]); // A4 size
+            const { width, height } = page.getSize();
+
+            // Colors
+            const darkGray = rgb(0.2, 0.2, 0.2);
+            const mediumGray = rgb(0.4, 0.4, 0.4);
+            const lightGray = rgb(0.7, 0.7, 0.7);
+            const purple = rgb(0.4, 0.31, 0.64);
+
+            let y = height - 60;
+
+            // Header
+            page.drawRectangle({
+                x: 0,
+                y: height - 80,
+                width: width,
+                height: 80,
+                color: purple
+            });
+
+            page.drawText('SAMPLE INVOICE', {
+                x: 50,
+                y: height - 55,
+                size: 28,
+                font: boldFont,
+                color: rgb(1, 1, 1)
+            });
+
+            page.drawText('Demo Data - 25 Items', {
+                x: 50,
+                y: height - 72,
+                size: 12,
+                font: font,
+                color: rgb(0.9, 0.9, 0.9)
+            });
+
+            y = height - 110;
+
+            // Invoice details
+            page.drawText('Invoice #: DEMO-2025-001', {
+                x: 50,
+                y: y,
+                size: 11,
+                font: font,
+                color: darkGray
+            });
+
+            page.drawText('Date: ' + new Date().toLocaleDateString('en-GB'), {
+                x: width - 200,
+                y: y,
+                size: 11,
+                font: font,
+                color: darkGray
+            });
+
+            y -= 40;
+
+            // Table header
+            page.drawRectangle({
+                x: 40,
+                y: y - 18,
+                width: width - 80,
+                height: 25,
+                color: rgb(0.95, 0.95, 0.95)
+            });
+
+            page.drawText('Item', {
+                x: 50,
+                y: y - 13,
+                size: 10,
+                font: boldFont,
+                color: darkGray
+            });
+
+            page.drawText('Description', {
+                x: 120,
+                y: y - 13,
+                size: 10,
+                font: boldFont,
+                color: darkGray
+            });
+
+            page.drawText('Price', {
+                x: 300,
+                y: y - 13,
+                size: 10,
+                font: boldFont,
+                color: darkGray
+            });
+
+            page.drawText('Running Total', {
+                x: 400,
+                y: y - 13,
+                size: 10,
+                font: boldFont,
+                color: darkGray
+            });
+
+            y -= 35;
+
+            // Add 25 line items
+            const itemPrice = 40.00;
+            let runningTotal = 0;
+
+            for (let i = 1; i <= 25; i++) {
+                runningTotal += itemPrice;
+
+                // Alternate row background
+                if (i % 2 === 0) {
+                    page.drawRectangle({
+                        x: 40,
+                        y: y - 15,
+                        width: width - 80,
+                        height: 20,
+                        color: rgb(0.98, 0.98, 0.98)
+                    });
+                }
+
+                // Item number
+                page.drawText(i.toString(), {
+                    x: 50,
+                    y: y,
+                    size: 9,
+                    font: font,
+                    color: mediumGray
+                });
+
+                // Description with "abc"
+                page.drawText('abc', {
+                    x: 120,
+                    y: y,
+                    size: 9,
+                    font: font,
+                    color: darkGray
+                });
+
+                // Price
+                page.drawText('£' + itemPrice.toFixed(2), {
+                    x: 300,
+                    y: y,
+                    size: 9,
+                    font: font,
+                    color: darkGray
+                });
+
+                // Running total
+                page.drawText('£' + runningTotal.toFixed(2), {
+                    x: 400,
+                    y: y,
+                    size: 9,
+                    font: font,
+                    color: purple
+                });
+
+                y -= 20;
+
+                // Add new page if needed
+                if (y < 100 && i < 25) {
+                    const newPage = pdfDoc.addPage([595, 842]);
+                    y = height - 60;
+
+                    newPage.drawText('SAMPLE INVOICE (continued)', {
+                        x: 50,
+                        y: height - 40,
+                        size: 16,
+                        font: boldFont,
+                        color: purple
+                    });
+
+                    y = height - 80;
+                }
+            }
+
+            // Footer section
+            y -= 30;
+
+            // Draw separator line
+            page.drawLine({
+                start: { x: 40, y: y },
+                end: { x: width - 40, y: y },
+                thickness: 2,
+                color: purple
+            });
+
+            y -= 25;
+
+            // Grand total
+            page.drawRectangle({
+                x: 350,
+                y: y - 20,
+                width: 200,
+                height: 35,
+                color: purple
+            });
+
+            page.drawText('TOTAL:', {
+                x: 360,
+                y: y - 5,
+                size: 14,
+                font: boldFont,
+                color: rgb(1, 1, 1)
+            });
+
+            page.drawText('£' + runningTotal.toFixed(2), {
+                x: 450,
+                y: y - 5,
+                size: 16,
+                font: boldFont,
+                color: rgb(1, 1, 1)
+            });
+
+            y -= 50;
+
+            // Footer note
+            page.drawText('This is demo data for testing the PDF Editor application.', {
+                x: 50,
+                y: y,
+                size: 8,
+                font: font,
+                color: lightGray
+            });
+
+            page.drawText('All 25 occurrences of "abc" can be searched and replaced.', {
+                x: 50,
+                y: y - 12,
+                size: 8,
+                font: font,
+                color: lightGray
+            });
+
+            // Save and return PDF bytes
+            const pdfBytes = await pdfDoc.save();
+            console.log('Sample PDF generated:', pdfBytes.byteLength, 'bytes');
+
+            return pdfBytes;
         }
 
         // ============================================
