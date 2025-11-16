@@ -812,7 +812,9 @@
             currentPage: 1,
             totalPages: 0,
             zoom: 1.5,                // Default zoom for better readability
-            searchResults: [],
+            searchResults: [],        // Array of search result objects
+            textContentByPage: [],    // Map of page number to text content
+            detectedCurrency: '$',    // Auto-detected currency symbol
             replacements: new Map()
         };
 
@@ -989,15 +991,30 @@
                     fileName: appState.fileName
                 });
 
-                // Load all pages
+                // Load all pages and extract text content
                 appState.pdfPages = [];
+                appState.textContentByPage = [];
+
                 for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
                     const page = await appState.pdfDocument.getPage(pageNum);
                     appState.pdfPages.push(page);
+
+                    // Extract text content for searching
+                    const textContent = await page.getTextContent();
+                    appState.textContentByPage.push({
+                        pageNumber: pageNum,
+                        textContent: textContent,
+                        items: textContent.items
+                    });
                 }
+
+                // Detect currency from text content
+                detectCurrency();
 
                 // Render all pages
                 await renderAllPages();
+
+                console.log('Text content extracted from all pages');
 
             } catch (error) {
                 console.error('Error in loadPDF:', error);
@@ -1100,28 +1117,303 @@
         }
 
         // ============================================
-        // PLACEHOLDER FUNCTIONS (FOR FUTURE PROMPTS)
+        // CURRENCY DETECTION
+        // ============================================
+
+        function detectCurrency() {
+            const currencySymbols = {
+                '$': 'USD',
+                '£': 'GBP',
+                '€': 'EUR',
+                '¥': 'JPY',
+                '₹': 'INR',
+                '₽': 'RUB',
+                '₩': 'KRW',
+                '₺': 'TRY'
+            };
+
+            let detectedSymbol = '$'; // Default
+
+            // Scan all text content for currency symbols
+            for (const pageContent of appState.textContentByPage) {
+                for (const item of pageContent.items) {
+                    const text = item.str || '';
+
+                    for (const [symbol, code] of Object.entries(currencySymbols)) {
+                        if (text.includes(symbol)) {
+                            detectedSymbol = symbol;
+                            appState.detectedCurrency = symbol;
+
+                            // Update UI
+                            const currencyBadge = document.querySelector('.currency-badge');
+                            if (currencyBadge) {
+                                currencyBadge.innerHTML = `${symbol} ${code}`;
+                            }
+
+                            console.log('Currency detected:', symbol, code);
+                            return; // Found currency, exit
+                        }
+                    }
+                }
+            }
+
+            console.log('No currency detected, using default: $');
+        }
+
+        // ============================================
+        // SEARCH FUNCTIONALITY
         // ============================================
 
         function handleSearch() {
-            console.log('Search triggered (to be implemented in next prompt)');
+            const searchTerm = document.getElementById('searchTerm').value.trim();
+
             if (!appState.pdfDocument) {
-                alert('Please upload a PDF first.');
+                alert('⚠️ Please upload a PDF first.');
                 return;
             }
+
+            if (!searchTerm) {
+                alert('⚠️ Please enter a search term.');
+                return;
+            }
+
+            if (searchTerm.length < 2) {
+                alert('⚠️ Search term must be at least 2 characters.');
+                return;
+            }
+
+            console.log('Searching for:', searchTerm);
+            updateStatus('Searching...', false);
+
+            try {
+                // Perform search
+                const results = searchInPDF(searchTerm);
+                appState.searchResults = results;
+
+                // Update UI
+                updateSearchResults(results, searchTerm);
+                updateStatus(`Found ${results.length} occurrence(s)`, true);
+
+                // Update status panel
+                const statusIndicators = document.querySelectorAll('.status-indicator');
+                const statusValues = document.querySelectorAll('.status-value');
+                if (statusIndicators[1]) statusIndicators[1].classList.remove('inactive');
+                if (statusValues[1]) statusValues[1].textContent = results.length;
+                if (statusValues[1]) statusValues[1].style.color = '#15803d';
+
+                console.log('Search complete:', results.length, 'results');
+
+            } catch (error) {
+                console.error('Search error:', error);
+                alert('❌ Error during search:\n\n' + error.message);
+                updateStatus('Search failed', false);
+            }
+        }
+
+        function searchInPDF(searchTerm) {
+            const results = [];
+            const searchLower = searchTerm.toLowerCase();
+            let id = 0;
+
+            // Search through all pages
+            for (let pageIndex = 0; pageIndex < appState.textContentByPage.length; pageIndex++) {
+                const pageData = appState.textContentByPage[pageIndex];
+                const pageNum = pageData.pageNumber;
+                const items = pageData.items;
+
+                // Build full text for this page with position tracking
+                let fullPageText = '';
+                const textPositions = []; // Map character index to item
+
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    const text = item.str || '';
+                    const startIndex = fullPageText.length;
+
+                    fullPageText += text + ' ';
+
+                    textPositions.push({
+                        startIndex: startIndex,
+                        endIndex: fullPageText.length,
+                        item: item,
+                        itemIndex: i
+                    });
+                }
+
+                // Search for term in page text
+                let position = 0;
+                while (position < fullPageText.length) {
+                    const index = fullPageText.toLowerCase().indexOf(searchLower, position);
+
+                    if (index === -1) break;
+
+                    // Find which text item contains this match
+                    let matchItem = null;
+                    let matchItemIndex = -1;
+
+                    for (let i = 0; i < textPositions.length; i++) {
+                        if (index >= textPositions[i].startIndex && index < textPositions[i].endIndex) {
+                            matchItem = textPositions[i].item;
+                            matchItemIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (matchItem) {
+                        // Extract context (characters around the match)
+                        const contextStart = Math.max(0, index - 50);
+                        const contextEnd = Math.min(fullPageText.length, index + searchTerm.length + 50);
+                        let context = fullPageText.substring(contextStart, contextEnd);
+
+                        if (contextStart > 0) context = '...' + context;
+                        if (contextEnd < fullPageText.length) context = context + '...';
+
+                        // Extract nearby numeric value (within 30 characters after match)
+                        const afterMatch = fullPageText.substring(index + searchTerm.length, index + searchTerm.length + 30);
+                        const value = extractNumericValue(afterMatch);
+
+                        // Get position coordinates from the text item
+                        const transform = matchItem.transform || [1, 0, 0, 1, 0, 0];
+                        const position = {
+                            x: transform[4],
+                            y: transform[5]
+                        };
+
+                        // Calculate running total (sum of all previous values)
+                        let runningTotal = value;
+                        for (const prevResult of results) {
+                            runningTotal += prevResult.value;
+                        }
+
+                        results.push({
+                            id: id++,
+                            match: searchTerm,
+                            value: value,
+                            page: pageNum,
+                            position: position,
+                            context: context,
+                            runningTotal: runningTotal,
+                            itemIndex: matchItemIndex
+                        });
+                    }
+
+                    position = index + 1;
+                }
+            }
+
+            return results;
+        }
+
+        function extractNumericValue(text) {
+            // Remove currency symbols and clean the text
+            const cleanText = text.replace(/[$£€¥₹₽₩₺]/g, '');
+
+            // Look for numbers with optional decimal point
+            // Matches: 40, 40.00, 1,234.56, etc.
+            const match = cleanText.match(/[\d,]+\.?\d*/);
+
+            if (match) {
+                const numStr = match[0].replace(/,/g, '');
+                const num = parseFloat(numStr);
+                return isNaN(num) ? 0 : num;
+            }
+
+            return 0;
+        }
+
+        // ============================================
+        // SEARCH RESULTS DISPLAY
+        // ============================================
+
+        function updateSearchResults(results, searchTerm) {
+            const mappingTable = document.querySelector('.mapping-table');
+
+            if (results.length === 0) {
+                mappingTable.innerHTML = `
+                    <div class="mapping-placeholder">
+                        <p><strong>No results found</strong></p>
+                        <p style="margin-top: 8px; font-size: 13px;">Try a different search term</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Build results HTML
+            let html = `
+                <div class="mapping-header">
+                    <div class="mapping-header-cell">Original</div>
+                    <div class="mapping-header-cell"></div>
+                    <div class="mapping-header-cell">New</div>
+                </div>
+            `;
+
+            results.forEach((result, index) => {
+                const originalValue = `${appState.detectedCurrency}${result.value.toFixed(2)}`;
+                const runningTotalStr = `${appState.detectedCurrency}${result.runningTotal.toFixed(2)}`;
+
+                html += `
+                    <div class="mapping-row">
+                        <div class="mapping-original">
+                            <div style="font-weight: 700;">${result.match}</div>
+                            <div style="font-size: 11px; margin-top: 4px;">Value: ${originalValue}</div>
+                            <div style="font-size: 11px;">Page: ${result.page}</div>
+                            <div style="font-size: 11px;">Total: ${runningTotalStr}</div>
+                        </div>
+                        <div class="mapping-arrow">→</div>
+                        <div class="mapping-new">
+                            <input
+                                type="text"
+                                class="mapping-input"
+                                placeholder="New name"
+                                data-id="${result.id}"
+                                style="width: 100%; padding: 6px; margin-bottom: 4px; border: 2px solid #e5e7eb; border-radius: 4px;"
+                            >
+                            <input
+                                type="number"
+                                class="mapping-input"
+                                placeholder="0.00"
+                                step="0.01"
+                                data-id="${result.id}"
+                                style="width: 100%; padding: 6px; border: 2px solid #e5e7eb; border-radius: 4px;"
+                            >
+                        </div>
+                    </div>
+                `;
+            });
+
+            mappingTable.innerHTML = html;
+
+            // Update totals display
+            updateTotalsDisplay(results);
+        }
+
+        function updateTotalsDisplay(results) {
+            if (results.length === 0) return;
+
+            const originalTotal = results[results.length - 1].runningTotal;
+
+            const originalTotalEl = document.querySelector('.total-value.original');
+            const newTotalEl = document.querySelector('.total-value.new');
+
+            if (originalTotalEl) {
+                originalTotalEl.textContent = `${appState.detectedCurrency}${originalTotal.toFixed(2)}`;
+            }
+
+            if (newTotalEl) {
+                newTotalEl.textContent = `${appState.detectedCurrency}${originalTotal.toFixed(2)}`;
+            }
+        }
+
+        // ============================================
+        // PLACEHOLDER FUNCTIONS (FOR FUTURE PROMPTS)
+        // ============================================
+
+        function replaceInPDF() {
             // To be implemented in next prompt
         }
 
-        function searchInPDF() {
-            // To be implemented
-        }
-
-        function replaceInPDF() {
-            // To be implemented
-        }
-
         function downloadModifiedPDF() {
-            // To be implemented
+            // To be implemented in next prompt
         }
     </script>
 </body>
